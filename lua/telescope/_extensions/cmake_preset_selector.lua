@@ -66,6 +66,7 @@ local show_cmake_configure_presets = function()
                                 log.debug("attach_mappings", selectedPreset)
                                 ConfigurePreset = selectedPreset
                                 actions.close(prompt_bufnr)
+                                vim.cmd('wa | 20split | term cmake --preset=' .. selectedPreset)
                         end)
                         return true
                 end
