@@ -65,7 +65,6 @@ local show_cmake_configure_presets = function()
                                 local selectedPreset = actions_state.get_selected_entry().value
                                 log.debug("attach_mappings", selectedPreset)
                                 ConfigurePreset = selectedPreset
-                                vim.print("ConfigurePreset: " .. ConfigurePreset)
                                 actions.close(prompt_bufnr)
                         end)
                         return true
