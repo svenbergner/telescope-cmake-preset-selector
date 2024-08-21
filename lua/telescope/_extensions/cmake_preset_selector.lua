@@ -109,7 +109,6 @@ local show_cmake_build_presets = function()
                                 local selectedPreset = actions_state.get_selected_entry().value
                                 log.debug("attach_mappings", selectedPreset)
                                 BuildPreset = selectedPreset
-                                vim.print("BuildPreset: " .. BuildPreset)
                                 actions.close(prompt_bufnr)
                         end)
                         return true
