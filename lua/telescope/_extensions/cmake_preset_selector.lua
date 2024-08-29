@@ -10,6 +10,9 @@ local log = require('plenary.log'):new()
 ConfigurePreset = ""
 BuildPreset = ""
 
+local current_index = 0
+local last_selected_index = 1
+
 local getPresetFromEntry = function(entry)
         local startOfPreset = entry:find('"', 1) + 1
         if startOfPreset == nil then
@@ -33,6 +36,7 @@ local show_cmake_configure_presets = function()
         local opts = {
                 results_title = "CMake Configure Presets",
                 prompt_title = "",
+                default_selection_index = last_selected_index,
                 layout_strategy = "vertical",
                 layout_config = {
                         width = 80,
@@ -42,18 +46,21 @@ local show_cmake_configure_presets = function()
         pickers.new(opts, {
                 finder = finders.new_async_job({
                         command_generator = function()
+                                current_index = 0
                                 return { "cmake", "--list-presets" }
                         end,
                         entry_maker = function(entry)
                                 if (not string.find(entry, '"')) then
                                         return nil
                                 end
+                                current_index = current_index + 1
                                 local preset = getPresetFromEntry(entry)
                                 local description = getDescFromEntry(entry)
                                 return {
                                         value = preset,
                                         display = description,
                                         ordinal = entry,
+                                        index = current_index,
                                 }
                         end,
                 }),
@@ -63,6 +70,7 @@ local show_cmake_configure_presets = function()
                 attach_mappings = function(prompt_bufnr)
                         actions.select_default:replace(function()
                                 local selectedPreset = actions_state.get_selected_entry().value
+                                last_selected_index = actions_state.get_selected_entry().index
                                 log.debug("attach_mappings", selectedPreset)
                                 ConfigurePreset = selectedPreset
                                 actions.close(prompt_bufnr)
@@ -77,6 +85,7 @@ local show_cmake_build_presets = function()
         local opts = {
                 results_title = "CMake Build Presets",
                 prompt_title = "",
+                default_selection_index = last_selected_index,
                 layout_strategy = "vertical",
                 layout_config = {
                         width = 80,
@@ -86,18 +95,21 @@ local show_cmake_build_presets = function()
         pickers.new(opts, {
                 finder = finders.new_async_job({
                         command_generator = function()
+                                current_index = 0
                                 return { "cmake", "--list-presets=build" }
                         end,
                         entry_maker = function(entry)
                                 if (not string.find(entry, '"')) then
                                         return nil
                                 end
+                                current_index = current_index + 1
                                 local preset = getPresetFromEntry(entry)
                                 local description = getDescFromEntry(entry)
                                 return {
                                         value = preset,
                                         display = description,
                                         ordinal = entry,
+                                        index = current_index,
                                 }
                         end,
                 }),
@@ -107,6 +119,9 @@ local show_cmake_build_presets = function()
                 attach_mappings = function(prompt_bufnr)
                         actions.select_default:replace(function()
                                 local selectedPreset = actions_state.get_selected_entry().value
+                                last_selected_index = actions_state.get_selected_entry().index - 2
+                                print("Selected preset: " .. selectedPreset)
+                                print("Selected index: " .. last_selected_index)
                                 log.debug("attach_mappings", selectedPreset)
                                 BuildPreset = selectedPreset
                                 actions.close(prompt_bufnr)
