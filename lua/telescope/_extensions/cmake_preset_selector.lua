@@ -70,7 +70,7 @@ local show_cmake_configure_presets = function()
                 attach_mappings = function(prompt_bufnr)
                         actions.select_default:replace(function()
                                 local selectedPreset = actions_state.get_selected_entry().value
-                                last_selected_index = actions_state.get_selected_entry().index
+                                last_selected_index = actions_state.get_selected_entry().index - 2
                                 log.debug("attach_mappings", selectedPreset)
                                 ConfigurePreset = selectedPreset
                                 actions.close(prompt_bufnr)
