@@ -120,8 +120,6 @@ local show_cmake_build_presets = function()
                         actions.select_default:replace(function()
                                 local selectedPreset = actions_state.get_selected_entry().value
                                 last_selected_index = actions_state.get_selected_entry().index - 2
-                                print("Selected preset: " .. selectedPreset)
-                                print("Selected index: " .. last_selected_index)
                                 log.debug("attach_mappings", selectedPreset)
                                 BuildPreset = selectedPreset
                                 actions.close(prompt_bufnr)
