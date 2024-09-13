@@ -1,3 +1,4 @@
+local M = {}
 local pickers = require('telescope.pickers')
 local finders = require('telescope.finders')
 local actions = require('telescope.actions')
@@ -123,7 +124,7 @@ local show_cmake_build_presets = function()
                                 log.debug("attach_mappings", selectedPreset)
                                 BuildPreset = selectedPreset
                                 actions.close(prompt_bufnr)
-                                vim.cmd('wa | 20split | term cmake --build --preset=' .. selectedPreset)
+                                vim.cmd('wa | 20split | term time cmake --build --preset=' .. selectedPreset)
                         end)
                         return true
                 end
