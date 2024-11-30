@@ -13,8 +13,30 @@ BuildPreset = ""
 
 local current_index = 0
 local last_selected_index = 1
-local win_handle = nil
-local buf_handle = nil
+
+local progress_message = ''
+local noice = require("noice")
+local notify_id = nil
+local function update_notification(message, title)
+        if notify_id then
+                local notification = noice.notify(message, "info", {
+                        title = title,
+                        replace = notify_id,
+                        position = { row = 1, col = "100%" },
+                })
+                if notification then
+                        notify_id = notification.id
+                end
+        else
+                local notification = noice.notify(message, "info", {
+                        title = title,
+                        position = { row = 1, col = "100%" },
+                })
+                if notification then
+                        notify_id = notification.id
+                end
+        end
+end
 
 local getPresetFromEntry = function(entry)
         local startOfPreset = entry:find('"', 1) + 1
@@ -77,7 +99,40 @@ local show_cmake_configure_presets = function()
                                 log.debug("attach_mappings", selectedPreset)
                                 ConfigurePreset = selectedPreset
                                 actions.close(prompt_bufnr)
-                                vim.cmd('wa | 20split | term cmake --preset=' .. selectedPreset)
+
+                                local api = vim.api
+                                api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
+                                vim.fn.setqflist({})
+                                local cmd = 'cmake --preset=' .. selectedPreset
+                                vim.fn.jobstart(cmd, {
+                                        stdout_buffered = false,
+                                        stderr_buffered = true,
+                                        on_stdout = function(_, data)
+                                                if data then
+                                                        progress_message = table.concat(data, "\n")
+                                                        update_notification(progress_message, 'CMake Configure Progress')
+                                                end
+                                        end,
+                                        on_stderr = function(_, data)
+                                                if data then
+                                                        for _, line in ipairs(data) do
+                                                                vim.fn.setqflist({}, 'a', { lines = { line } })
+                                                        end
+                                                end
+                                        end,
+                                        on_exit = function(_, code)
+                                                notify_id = nil
+                                                if code == 0 then
+                                                        require("noice").notify("CMake configure completed successfully", "info")
+                                                        vim.cmd('cclose')
+                                                else
+                                                        require("noice").notify("CMake configure failed", "error")
+                                                        vim.cmd('copen')
+                                                        vim.cmd('cnext')
+                                                        vim.cmd('wincmd p')
+                                                end
+                                        end,
+                                })
                         end)
                         return true
                 end
@@ -130,14 +185,14 @@ local show_cmake_build_presets = function()
                                 local api = vim.api
                                 api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
                                 vim.fn.setqflist({})
-                                local cmd = 'cmake --build --preset=' .. selectedPreset
+                                local cmd = 'cmake --build --progress --preset=' .. selectedPreset
                                 vim.fn.jobstart(cmd, {
-                                        stdout_buffered = true,
+                                        stdout_buffered = false,
+                                        stderr_buffered = true,
                                         on_stdout = function(_, data)
                                                 if data then
-                                                        for _, line in ipairs(data) do
-                                                                vim.fn.setqflist({}, 'a', { lines = { line } })
-                                                        end
+                                                        progress_message = table.concat(data, "\n")
+                                                        update_notification(progress_message, 'Build Progress')
                                                 end
                                         end,
                                         on_stderr = function(_, data)
@@ -148,6 +203,7 @@ local show_cmake_build_presets = function()
                                                 end
                                         end,
                                         on_exit = function(_, code)
+                                                notify_id = nil
                                                 if code == 0 then
                                                         require("noice").notify("Build completed successfully", "info")
                                                         vim.cmd('cclose')
@@ -189,45 +245,5 @@ return require("telescope").register_extension({
 -- Commandline to list cmake presets and custom targets
 -- cmake_build_preset_with_target='cmake --build --preset=$(cmake --list-presets=build | tail -n +3 | fzf | cut -d '\''"'\'' -f2) --target=$(rg add_custom_target -g !ExternalLibs/ -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq | fzf)'
 
-
-
 -- vim.cmd('wa | 20split | term time cmake --build --preset=' .. selectedPreset)
 -- set makeprg=cd\ build\ &&\ cmake\ -DCMAKE_BUILD_TYPE=debug\ -DCMAKE_EXPORT_COMPILE_COMMANDS=1\ ../view\ &&\ cmake\ --build\ . <bar> :compiler gcc <bar> :make <CR>
-
-
-
-
--- local cmd = 'cmake --build --progress --preset=' .. selectedPreset
--- vim.fn.jobstart(cmd, {
---         stdout_buffered = true,
---         on_stdout = function(_, data)
---                 if data then
---                         require("noice").notify(table.concat(data, "\n"), "info")
---                 end
---         end,
---         on_stderr = function(_, data)
---                 if data then
---                         require("noice").notify(table.concat(data, "\n"), "error")
---                 end
---         end,
---         on_exit = function(_, code)
---                 if code == 0 then
---                         require("noice").notify("Build completed successfully", "info")
---                 else
---                         require("noice").notify("Build failed", "error")
---                         -- Parse the error message to extract file and line number
---                         local error_file, error_line
---                         for _, line in ipairs(code) do
---                                 error_file, error_line = line:match("([^:]+):(%d+):")
---                                 if error_file and error_line then
---                                         break
---                                 end
---                         end
---                         if error_file and error_line then
---                                 vim.api.nvim_command('edit ' .. error_file)
---                                 vim.api.nvim_win_set_cursor(0, { tonumber(error_line), 0 })
---                         end
---                         api.nvim_command('Trouble diagnostics open')
---                 end
---         end,
--- })
