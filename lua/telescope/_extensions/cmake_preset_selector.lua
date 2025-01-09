@@ -1,4 +1,3 @@
-local M = {}
 local pickers = require('telescope.pickers')
 local finders = require('telescope.finders')
 local actions = require('telescope.actions')
@@ -15,27 +14,16 @@ local current_index = 0
 local last_selected_index = 1
 
 local progress_message = ''
-local noice = require("noice")
-local notify_id = nil
-local function update_notification(message, title)
-        if notify_id then
-                local notification = noice.notify(message, "info", {
-                        title = title,
-                        replace = notify_id,
-                        position = { row = 1, col = "100%" },
-                })
-                if notification then
-                        notify_id = notification.id
-                end
-        else
-                local notification = noice.notify(message, "info", {
-                        title = title,
-                        position = { row = 1, col = "100%" },
-                })
-                if notification then
-                        notify_id = notification.id
-                end
+local function update_notification(message, title, level)
+        level = level or "info"
+        if #message < 1 then
+                return
         end
+        vim.notify(message, level, {
+                id = title,
+                title = title,
+                position = { row = 1, col = "100%" },
+        })
 end
 
 local getPresetFromEntry = function(entry)
@@ -123,7 +111,8 @@ local show_cmake_configure_presets = function()
                                         on_exit = function(_, code)
                                                 notify_id = nil
                                                 if code == 0 then
-                                                        require("noice").notify("CMake configure completed successfully", "info")
+                                                        require("noice").notify("CMake configure completed successfully",
+                                                                "info")
                                                         vim.cmd('cclose')
                                                 else
                                                         require("noice").notify("CMake configure failed", "error")
@@ -193,6 +182,9 @@ local show_cmake_build_presets = function()
                                                 if data then
                                                         progress_message = table.concat(data, "\n")
                                                         update_notification(progress_message, 'Build Progress')
+                                                        for _, line in ipairs(data) do
+                                                                vim.fn.setqflist({}, 'a', { lines = { line } })
+                                                        end
                                                 end
                                         end,
                                         on_stderr = function(_, data)
@@ -205,10 +197,11 @@ local show_cmake_build_presets = function()
                                         on_exit = function(_, code)
                                                 notify_id = nil
                                                 if code == 0 then
-                                                        require("noice").notify("Build completed successfully", "info")
+                                                        update_notification("Build completed successfully!",
+                                                                "Build Finished", "info")
                                                         vim.cmd('cclose')
                                                 else
-                                                        require("noice").notify("Build failed", "error")
+                                                        update_notification("Build failed!", "Build Finished", "error")
                                                         vim.cmd('copen')
                                                         vim.cmd('cnext')
                                                         vim.cmd('wincmd p')
