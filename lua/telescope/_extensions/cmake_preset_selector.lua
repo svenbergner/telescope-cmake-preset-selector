@@ -19,6 +19,7 @@ local update_notification = function(message, title, level, timeout)
         if #message < 1 then
                 return
         end
+        message = string.gsub(message, "\n.*$", "")
         vim.notify(message, level, {
                 id = title,
                 title = title,
