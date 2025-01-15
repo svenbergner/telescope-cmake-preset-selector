@@ -13,7 +13,7 @@ BuildPreset = ""
 local current_index = 0
 local last_selected_index = 1
 
-local function update_notification(message, title, level)
+local update_notification = function(message, title, level, timeout)
         level = level or "info"
         if #message < 1 then
                 return
