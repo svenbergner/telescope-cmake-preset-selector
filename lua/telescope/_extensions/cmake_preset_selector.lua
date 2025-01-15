@@ -13,7 +13,6 @@ BuildPreset = ""
 local current_index = 0
 local last_selected_index = 1
 
-local progress_message = ''
 local function update_notification(message, title, level)
         level = level or "info"
         if #message < 1 then
@@ -97,7 +96,7 @@ local show_cmake_configure_presets = function()
                                         stderr_buffered = true,
                                         on_stdout = function(_, data)
                                                 if data then
-                                                        progress_message = table.concat(data, "\n")
+                                                        local progress_message = table.concat(data, "\n")
                                                         update_notification(progress_message, 'CMake Configure Progress')
                                                 end
                                         end,
@@ -179,7 +178,7 @@ local show_cmake_build_presets = function()
                                         stderr_buffered = true,
                                         on_stdout = function(_, data)
                                                 if data then
-                                                        progress_message = table.concat(data, "\n")
+                                                        local progress_message = table.concat(data, "\n")
                                                         update_notification(progress_message, 'Build Progress')
                                                         for _, line in ipairs(data) do
                                                                 vim.fn.setqflist({}, 'a', { lines = { line } })
@@ -187,6 +186,8 @@ local show_cmake_build_presets = function()
                                                 end
                                         end,
                                         on_stderr = function(_, data)
+                                                local progress_message = table.concat(data, "\n")
+                                                update_notification(progress_message, 'Build Progress', 'error')
                                                 if data then
                                                         for _, line in ipairs(data) do
                                                                 vim.fn.setqflist({}, 'a', { lines = { line } })
