@@ -23,6 +23,7 @@ local update_notification = function(message, title, level, timeout)
                 id = title,
                 title = title,
                 position = { row = 1, col = "100%" },
+                timeout = timeout, -- Timeout in milliseconds
         })
 end
 
