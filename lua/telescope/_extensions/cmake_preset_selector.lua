@@ -109,7 +109,6 @@ local show_cmake_configure_presets = function()
                                                 end
                                         end,
                                         on_exit = function(_, code)
-                                                notify_id = nil
                                                 if code == 0 then
                                                         require("noice").notify("CMake configure completed successfully",
                                                                 "info")
@@ -195,7 +194,6 @@ local show_cmake_build_presets = function()
                                                 end
                                         end,
                                         on_exit = function(_, code)
-                                                notify_id = nil
                                                 if code == 0 then
                                                         update_notification("Build completed successfully!",
                                                                 "Build Finished", "info")
