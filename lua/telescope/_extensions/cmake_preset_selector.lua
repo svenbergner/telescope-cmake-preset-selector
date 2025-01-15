@@ -15,6 +15,7 @@ local last_selected_index = 1
 
 local update_notification = function(message, title, level, timeout)
         level = level or "info"
+        timeout = timeout or 3000
         if #message < 1 then
                 return
         end
