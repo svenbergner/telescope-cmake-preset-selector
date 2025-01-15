@@ -184,7 +184,9 @@ local show_cmake_build_presets = function()
                                                         local progress_message = table.concat(data, "\n")
                                                         update_notification(progress_message, 'Build Progress')
                                                         for _, line in ipairs(data) do
-                                                                vim.fn.setqflist({}, 'a', { lines = { line } })
+                                                                if #line > 1 then
+                                                                        vim.fn.setqflist({}, 'a', { lines = { line } })
+                                                                end
                                                         end
                                                 end
                                         end,
@@ -193,7 +195,9 @@ local show_cmake_build_presets = function()
                                                 update_notification(progress_message, 'Build Progress', 'error')
                                                 if data then
                                                         for _, line in ipairs(data) do
-                                                                vim.fn.setqflist({}, 'a', { lines = { line } })
+                                                                if #line > 1 then
+                                                                        vim.fn.setqflist({}, 'a', { lines = { line } })
+                                                                end
                                                         end
                                                 end
                                         end,
