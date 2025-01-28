@@ -13,7 +13,25 @@ BuildPreset = ""
 local current_index = 0
 local last_selected_index = 1
 
-local update_notification = function(message, title, level, timeout)
+-- scroll target buffer to end (set cursor to last line)
+local function scroll_to_end(bufnr)
+  local cur_win = vim.api.nvim_get_current_win()
+
+  -- switch to buf and set cursor
+  vim.api.nvim_buf_call(bufnr, function()
+    local target_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_set_current_win(target_win)
+
+    local target_line = vim.tbl_count(vim.api.nvim_buf_get_lines(0, 0, -1, true))
+    vim.api.nvim_win_set_cursor(target_win, { target_line, 0 })
+  end)
+
+  -- return to original window
+  vim.api.nvim_set_current_win(cur_win)
+end
+
+
+local function update_notification(message, title, level, timeout)
   level = level or "info"
   timeout = timeout or 3000
   if #message < 1 then
@@ -28,7 +46,7 @@ local update_notification = function(message, title, level, timeout)
   })
 end
 
-local getPresetFromEntry = function(entry)
+local function getPresetFromEntry(entry)
   local startOfPreset = entry:find('"', 1) + 1
   if startOfPreset == nil then
     return ""
@@ -37,7 +55,7 @@ local getPresetFromEntry = function(entry)
   return entry:sub(startOfPreset, endOfPreset)
 end
 
-local getDescFromEntry = function(entry)
+local function getDescFromEntry(entry)
   local entryLen = #entry
   local startOfDesc = entry:find('- ', 1) + 2
   if startOfDesc == nil then
@@ -47,7 +65,7 @@ local getDescFromEntry = function(entry)
   return entry:sub(startOfDesc, endOfDesc)
 end
 
-local show_cmake_configure_presets = function()
+local function show_cmake_configure_presets()
   local opts = {
     results_title = "CMake Configure Presets",
     prompt_title = "",
@@ -129,7 +147,7 @@ local show_cmake_configure_presets = function()
   }):find()
 end
 
-local show_cmake_build_presets = function()
+local function show_cmake_build_presets()
   local opts = {
     results_title = "CMake Build Presets",
     prompt_title = "",
@@ -205,7 +223,8 @@ local show_cmake_build_presets = function()
             if code == 0 then
               update_notification("Build completed successfully!",
                 "Build Finished", "info")
-              vim.cmd('cclose')
+              vim.cmd('copen')
+              scroll_to_end(0)
             else
               update_notification("Build failed!", "Build Finished", "error")
               vim.cmd('copen')
@@ -220,7 +239,7 @@ local show_cmake_build_presets = function()
   }):find()
 end
 
-local get_build_preset = function()
+local function get_build_preset()
   return BuildPreset
 end
 
