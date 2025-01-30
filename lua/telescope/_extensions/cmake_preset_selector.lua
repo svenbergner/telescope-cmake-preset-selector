@@ -30,6 +30,15 @@ local function scroll_to_end(bufnr)
   vim.api.nvim_set_current_win(cur_win)
 end
 
+local function format_time(duration)
+  local total_seconds = vim.fn.reltimefloat(duration)
+  total_seconds = total_seconds % 3600
+  local minutes = math.floor(total_seconds / 60)
+  local seconds = total_seconds % 60
+  local milliseconds = (seconds - math.floor(seconds)) * 1000
+  seconds = math.floor(seconds)
+  return string.format("%02d:%02d.%03d", minutes, seconds, milliseconds)
+end
 
 local function update_notification(message, title, level, timeout)
   level = level or "info"
@@ -42,7 +51,7 @@ local function update_notification(message, title, level, timeout)
     id = title,
     title = title,
     position = { row = 1, col = "100%" },
-    timeout = timeout,             -- Timeout in milliseconds
+    timeout = timeout, -- Timeout in milliseconds
   })
 end
 
@@ -109,8 +118,9 @@ local function show_cmake_configure_presets()
         actions.close(prompt_bufnr)
 
         local api = vim.api
-        api.nvim_cmd({ cmd = 'wa' }, {})                         -- save all buffers
+        api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
         vim.fn.setqflist({})
+        update_notification('CMake configure started for preset: ' .. selectedPreset, 'CMake Configure Progress')
         local cmd = 'cmake --preset=' .. selectedPreset
         vim.fn.jobstart(cmd, {
           stdout_buffered = false,
@@ -191,8 +201,10 @@ local function show_cmake_build_presets()
         actions.close(prompt_bufnr)
 
         local api = vim.api
-        api.nvim_cmd({ cmd = 'wa' }, {})                         -- save all buffers
+        api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
         vim.fn.setqflist({})
+        local starttime = vim.fn.reltime()
+        update_notification('Build started for preset: ' .. selectedPreset, 'Build Progress')
         local cmd = 'cmake --build --progress --preset=' .. selectedPreset
         vim.fn.jobstart(cmd, {
           stdout_buffered = false,
@@ -220,6 +232,10 @@ local function show_cmake_build_presets()
             end
           end,
           on_exit = function(_, code)
+            local endtime = vim.fn.reltime()
+            local duration = vim.fn.reltime(starttime, endtime)
+            local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
+            vim.fn.setqflist({}, 'a', { lines = { duration_message } })
             if code == 0 then
               update_notification("Build completed successfully!",
                 "Build Finished", "info")
