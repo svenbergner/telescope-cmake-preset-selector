@@ -204,7 +204,8 @@ local function show_cmake_build_presets()
         api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
         vim.fn.setqflist({})
         local starttime = vim.fn.reltime()
-        update_notification('Build started for preset: ' .. selectedPreset, 'Build Progress')
+        update_notification('Build started for preset: ' .. selectedPreset, 'Build Progress: ' .. selectedPreset, 'info',
+          50000)
         local cmd = 'cmake --build --progress --preset=' .. selectedPreset
         vim.fn.jobstart(cmd, {
           stdout_buffered = false,
@@ -212,7 +213,7 @@ local function show_cmake_build_presets()
           on_stdout = function(_, data)
             if data then
               local progress_message = table.concat(data, "\n")
-              update_notification(progress_message, 'Build Progress')
+              update_notification(progress_message, 'Build Progress: ' .. selectedPreset, 'info', 50000)
               for _, line in ipairs(data) do
                 if #line > 1 then
                   vim.fn.setqflist({}, 'a', { lines = { line } })
@@ -222,7 +223,7 @@ local function show_cmake_build_presets()
           end,
           on_stderr = function(_, data)
             local progress_message = table.concat(data, "\n")
-            update_notification(progress_message, 'Build Progress', 'error')
+            update_notification(progress_message, 'Build Progress: ' .. selectedPreset, 'error')
             if data then
               for _, line in ipairs(data) do
                 if #line > 1 then
@@ -236,9 +237,10 @@ local function show_cmake_build_presets()
             local duration = vim.fn.reltime(starttime, endtime)
             local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
             vim.fn.setqflist({}, 'a', { lines = { duration_message } })
+            update_notification('Finished', 'Build Progress: ' .. selectedPreset, 'info', 1)
             if code == 0 then
               update_notification("Build completed successfully!",
-                "Build Finished", "info")
+                "Build Finished: " .. selectedPreset, "info")
               vim.cmd('copen')
               scroll_to_end(0)
             else
