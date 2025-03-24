@@ -241,6 +241,7 @@ local function show_cmake_build_presets()
             local endtime = vim.fn.reltime()
             local duration = vim.fn.reltime(starttime, endtime)
             local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
+            handle.message = duration_message
             vim.fn.setqflist({}, 'a', { lines = { duration_message } })
             if code == 0 then
               handle:finish()
