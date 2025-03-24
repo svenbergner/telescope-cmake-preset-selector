@@ -208,12 +208,11 @@ local function show_cmake_build_presets()
         -- Start a new task with fidget
         local handle = progress.handle.create({
           title = "",
-          message = "Starting...",
+          message = "Build started for preset: " .. selectedPreset,
           lsp_client = { name = "CMake Build: " .. selectedPreset },
         })
 
         local starttime = vim.fn.reltime()
-        handle.message = "Build started for preset: " .. selectedPreset
         local cmd = 'cmake --build --progress --preset=' .. selectedPreset
         vim.fn.jobstart(cmd, {
           stdout_buffered = false,
