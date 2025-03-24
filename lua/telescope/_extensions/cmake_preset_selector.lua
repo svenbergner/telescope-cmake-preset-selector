@@ -210,12 +210,9 @@ local function show_cmake_build_presets()
           title = "",
           message = "Starting...",
           lsp_client = { name = "CMake Build: " .. selectedPreset },
-          percentage = 0,
         })
 
         local starttime = vim.fn.reltime()
-        update_notification('Build started for ' .. selectedPreset, 'Build Progress', 'info',
-          50)
         handle.message = "Build started for preset: " .. selectedPreset
         local cmd = 'cmake --build --progress --preset=' .. selectedPreset
         vim.fn.jobstart(cmd, {
@@ -224,16 +221,7 @@ local function show_cmake_build_presets()
           on_stdout = function(_, data)
             if data then
               local progress_message = table.concat(data, "\n")
-              local percentage = function()
-                local current, total = string.match(progress_message, "([0-9]+)/([0-9]+)")
-                if current and total then
-                  return math.floor((tonumber(current) / tonumber(total)) * 100)
-                end
-                return 0
-              end
-              handle.title = ""
               handle.message = progress_message
-              handle.percentage = percentage()
               for _, line in ipairs(data) do
                 if #line > 1 then
                   vim.fn.setqflist({}, 'a', { lines = { line } })
@@ -242,8 +230,6 @@ local function show_cmake_build_presets()
             end
           end,
           on_stderr = function(_, data)
-            local progress_message = table.concat(data, "\n")
-            update_notification(progress_message, 'Build Progress: ' .. selectedPreset, 'error')
             if data then
               for _, line in ipairs(data) do
                 if #line > 1 then
@@ -257,16 +243,12 @@ local function show_cmake_build_presets()
             local duration = vim.fn.reltime(starttime, endtime)
             local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
             vim.fn.setqflist({}, 'a', { lines = { duration_message } })
-            update_notification('Finished', 'Build Progress: ' .. selectedPreset, 'info', 1)
             if code == 0 then
               handle:finish()
-              update_notification("Build completed successfully!",
-                "Build Finished: " .. selectedPreset, "info")
               vim.cmd('copen')
               scroll_to_end(0)
             else
               handle:cancel()
-              update_notification("Build failed!", "Build Finished", "error")
               vim.cmd('copen')
               vim.cmd('cnext')
               vim.cmd('wincmd p')
