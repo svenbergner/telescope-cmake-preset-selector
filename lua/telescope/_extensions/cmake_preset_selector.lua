@@ -14,6 +14,27 @@ BuildPreset = ""
 local current_index = 0
 local last_selected_index = 1
 
+local function create_progress_bar(current, total, bar_length)
+  local current_int, current_ok = tonumber(current)
+  if not current_ok then
+    return "fail current: " .. current
+  end
+
+  local total_int, total_ok = tonumber(total)
+  if not total_ok then
+    return "fail total: " .. total
+  end
+  if #current == 0 or #total == 0 then
+    return ""
+  end
+  bar_length = bar_length or 50 -- Default length of the progress bar
+  print("current: " .. current .. " total: " .. total)
+  local current_progress = current_int / total_int
+  local completed_length = math.floor(current_progress * bar_length)
+  local bar = string.rep("=", completed_length) .. string.rep(" ", bar_length - completed_length)
+  return string.format("[%s] %d%%", bar, math.floor(current_progress * 100))
+end
+
 -- scroll target buffer to end (set cursor to last line)
 local function scroll_to_end(bufnr)
   local cur_win = vim.api.nvim_get_current_win()
@@ -129,7 +150,10 @@ local function show_cmake_configure_presets()
           on_stdout = function(_, data)
             if data then
               local progress_message = table.concat(data, "\n")
-              update_notification(progress_message, 'CMake Configure Progress')
+              local current_step = string.gsub(progress_message, "^[(%d+)/(%d+)].*", "%1")
+              local steps = string.gsub(progress_message, "^[(%d+)/(%d+)].*", "%2")
+              local progressbar = create_progress_bar(current_step, steps, 50)
+              update_notification(progressbar .. progress_message, 'CMake Configure Progress')
             end
           end,
           on_stderr = function(_, data)
@@ -220,7 +244,10 @@ local function show_cmake_build_presets()
           on_stdout = function(_, data)
             if data then
               local progress_message = table.concat(data, "\n")
-              handle.message = progress_message
+              local current_step = string.gsub(progress_message, ".*[(%d+)/(%d+)].*", "%1")
+              local steps = string.gsub(progress_message, ".*[(%d+)/(%d+)].*", "%2")
+              local progressbar = create_progress_bar(current_step, steps, 50)
+              handle.message = progressbar .. progress_message
               for _, line in ipairs(data) do
                 if #line > 1 then
                   vim.fn.setqflist({}, 'a', { lines = { line } })
