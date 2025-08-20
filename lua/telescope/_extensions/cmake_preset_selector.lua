@@ -33,8 +33,6 @@ end
 
 -- scroll quickfix window to end if it's open, without giving it focus
 local function scroll_quickfix_to_end_if_open()
-  local cur_win = vim.api.nvim_get_current_win()
-
   -- Find quickfix window
   local qf_win = nil
   for _, win in ipairs(vim.api.nvim_list_wins()) do
