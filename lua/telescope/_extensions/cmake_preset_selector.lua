@@ -31,6 +31,31 @@ local function scroll_to_end(bufnr)
   vim.api.nvim_set_current_win(cur_win)
 end
 
+-- scroll quickfix window to end if it's open, without giving it focus
+local function scroll_quickfix_to_end_if_open()
+  local cur_win = vim.api.nvim_get_current_win()
+
+  -- Find quickfix window
+  local qf_win = nil
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    local buf_type = vim.bo[buf].buftype
+    if buf_type == 'quickfix' then
+      qf_win = win
+      break
+    end
+  end
+
+  if qf_win then
+    -- Scroll quickfix window to end without changing focus
+    vim.api.nvim_win_call(qf_win, function()
+      local qf_buf = vim.api.nvim_win_get_buf(qf_win)
+      local line_count = vim.api.nvim_buf_line_count(qf_buf)
+      vim.api.nvim_win_set_cursor(qf_win, { line_count, 0 })
+    end)
+  end
+end
+
 local function format_time(duration)
   local total_seconds = vim.fn.reltimefloat(duration)
   total_seconds = total_seconds % 3600
