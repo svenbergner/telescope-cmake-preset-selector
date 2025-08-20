@@ -164,8 +164,7 @@ local function show_cmake_configure_presets()
           end,
           on_exit = function(_, code)
             if code == 0 then
-              require("noice").notify("CMake configure completed successfully",
-                "info")
+              require("noice").notify("CMake configure completed successfully", "info")
               vim.cmd('cclose')
             else
               require("noice").notify("CMake configure failed", "error")
