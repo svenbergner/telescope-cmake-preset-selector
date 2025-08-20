@@ -160,6 +160,7 @@ local function show_cmake_configure_presets()
               for _, line in ipairs(data) do
                 vim.fn.setqflist({}, 'a', { lines = { line } })
               end
+              scroll_quickfix_to_end_if_open()
             end
           end,
           on_exit = function(_, code)
@@ -248,6 +249,7 @@ local function show_cmake_build_presets()
                   vim.fn.setqflist({}, 'a', { lines = { line } })
                 end
               end
+              scroll_quickfix_to_end_if_open()
             end
           end,
           on_stderr = function(_, data)
