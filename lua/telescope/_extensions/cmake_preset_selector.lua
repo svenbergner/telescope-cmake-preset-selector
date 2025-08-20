@@ -395,6 +395,98 @@ local get_configure_preset = function()
   return ConfigurePreset
 end
 
+
+
+local function pick_cmd_result(picker_opts)
+  local function finder(opts, ctx)
+    return require("snacks.picker.source.proc").proc({
+      opts,
+      {
+        cmd = picker_opts.cmd,
+        args = picker_opts.args,
+        transform = picker_opts.transform,
+      },
+    }, ctx)
+  end
+
+  Snacks.picker.pick({
+    source = picker_opts.name,
+    finder = finder,
+    preview = picker_opts.preview,
+    title = picker_opts.title,
+    layout = picker_opts.layout,
+    format = picker_opts.format,
+    confirm = picker_opts.confirm,
+    filter = picker_opts.filter,
+  })
+end
+
+-- Snacks custom pickers
+local Snacks = require("snacks")
+-- Custom Pickers
+Custom_pickers = {}
+
+-- cmake_build_preset_with_target='cmake --build --preset=$(cmake --list-presets=build | tail -n +3 | fzf | cut -d '\''"'\'' -f2) --target=$(rg add_custom_target -g !ExternalLibs/ -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq | fzf)'
+
+function Custom_pickers.cmake_build_preset_with_target()
+  local preset = ''
+  pick_cmd_result({
+    cmd = "cmake",
+    args = { "--list-presets=build" },
+    name = "Custom_pickers.cmake_build_preset_with_target",
+    title = "CMake Build Presets with Target",
+    format = "text",
+    layout = { preset = "vscode" },
+    confirm = function(picker, item)
+      picker:close()
+      preset = item.preset
+      vim.print("Selected CMake Build Preset with Target: " .. preset)
+      return true
+    end,
+    transform = function(item)
+      local preset = getPresetFromEntry(item.text)
+      local description = getDescFromEntry(item.text)
+      item.preset = preset
+      item.description = description
+      item.text = description
+      -- return item
+    end,
+    -- filter = function(item)
+    --   -- vim.print("Filtering item: " .. item.text)
+    --   -- return item.text ~= nil and item.text ~= ""
+    --   return false
+    -- end,
+  })
+
+  pick_cmd_result({
+    cmd = "cmake",
+    args = { "--list-presets=build" },
+    name = "Custom_pickers.cmake_build_preset_with_target",
+    title = "CMake Build Presets with Target",
+    format = "text",
+    layout = { preset = "vscode" },
+    confirm = function(picker, item)
+      picker:close()
+      preset = item.preset
+      vim.print("Selected CMake Build Preset with Target: " .. preset)
+      return true
+    end,
+    transform = function(item)
+      local preset = getPresetFromEntry(item.text)
+      local description = getDescFromEntry(item.text)
+      item.preset = preset
+      item.description = description
+      item.text = description
+      -- return item
+    end,
+    -- filter = function(item)
+    --   -- vim.print("Filtering item: " .. item.text)
+    --   -- return item.text ~= nil and item.text ~= ""
+    --   return false
+    -- end,
+  })
+end
+
 return require("telescope").register_extension({
   exports = {
     show_cmake_configure_presets = show_cmake_configure_presets,
