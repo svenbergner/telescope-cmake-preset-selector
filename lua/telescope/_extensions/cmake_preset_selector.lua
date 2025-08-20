@@ -80,20 +80,28 @@ local function update_notification(message, title, level, timeout)
 end
 
 local function getPresetFromEntry(entry)
-  local startOfPreset = entry:find('"', 1) + 1
-  if startOfPreset == nil then
+  local startPos = entry:find('"', 1)
+  if startPos == nil then
     return ""
   end
-  local endOfPreset = entry:find('"', startOfPreset + 1) - 1
+  local startOfPreset = startPos + 1
+
+  local endPos = entry:find('"', startOfPreset)
+  if endPos == nil then
+    return ""
+  end
+  local endOfPreset = endPos - 1
+
   return entry:sub(startOfPreset, endOfPreset)
 end
 
 local function getDescFromEntry(entry)
   local entryLen = #entry
-  local startOfDesc = entry:find('- ', 1) + 2
+  local startOfDesc = entry:find('- ', 1)
   if startOfDesc == nil then
     return ""
   end
+  startOfDesc = startOfDesc + 2 -- Skip the '- ' part
   local endOfDesc = entryLen
   return entry:sub(startOfDesc, endOfDesc)
 end
@@ -507,4 +515,3 @@ return require("telescope").register_extension({
 
 -- vim.cmd('wa | 20split | term time cmake --build --preset=' .. selectedPreset)
 -- set makeprg=cd\ build\ &&\ cmake\ -DCMAKE_BUILD_TYPE=debug\ -DCMAKE_EXPORT_COMPILE_COMMANDS=1\ ../view\ &&\ cmake\ --build\ . <bar> :compiler gcc <bar> :make <CR>
-
