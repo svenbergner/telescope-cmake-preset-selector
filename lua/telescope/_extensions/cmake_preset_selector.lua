@@ -1,11 +1,11 @@
-local pickers = require('telescope.pickers')
-local finders = require('telescope.finders')
-local actions = require('telescope.actions')
-local actions_state = require('telescope.actions.state')
-local config = require('telescope.config').values
-local progress = require('fidget.progress')
+local pickers = require("telescope.pickers")
+local finders = require("telescope.finders")
+local actions = require("telescope.actions")
+local actions_state = require("telescope.actions.state")
+local config = require("telescope.config").values
+local progress = require("fidget.progress")
 
-local log = require('plenary.log'):new()
+local log = require("plenary.log"):new()
 -- log.level = 'debug'
 
 ConfigurePreset = ""
@@ -38,7 +38,7 @@ local function scroll_quickfix_to_end_if_open()
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     local buf = vim.api.nvim_win_get_buf(win)
     local buf_type = vim.bo[buf].buftype
-    if buf_type == 'quickfix' then
+    if buf_type == "quickfix" then
       qf_win = win
       break
     end
@@ -97,7 +97,7 @@ end
 
 local function getDescFromEntry(entry)
   local entryLen = #entry
-  local startOfDesc = entry:find('- ', 1)
+  local startOfDesc = entry:find("- ", 1)
   if startOfDesc == nil then
     return ""
   end
@@ -438,7 +438,7 @@ Custom_pickers = {}
 -- cmake_build_preset_with_target='cmake --build --preset=$(cmake --list-presets=build | tail -n +3 | fzf | cut -d '\''"'\'' -f2) --target=$(rg add_custom_target -g !ExternalLibs/ -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq | fzf)'
 
 function Custom_pickers.cmake_build_preset_with_target()
-  local preset = ''
+  local preset = ""
   pick_cmd_result({
     cmd = "cmake",
     args = { "--list-presets=build" },
@@ -503,7 +503,7 @@ return require("telescope").register_extension({
     show_cmake_build_presets_with_target = show_cmake_build_presets_with_target,
     get_build_preset = get_build_preset,
     get_configure_preset = get_configure_preset,
-  }
+  },
 })
 
 -- Commandline to list cmake build presets
