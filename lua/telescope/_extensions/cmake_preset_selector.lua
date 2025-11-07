@@ -13,23 +13,7 @@ BuildPreset = ""
 
 local current_index = 0
 local last_selected_index = 1
-
--- scroll target buffer to end (set cursor to last line)
-local function scroll_to_end(bufnr)
-  local cur_win = vim.api.nvim_get_current_win()
-
-  -- switch to buf and set cursor
-  vim.api.nvim_buf_call(bufnr, function()
-    local target_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_set_current_win(target_win)
-
-    local target_line = vim.tbl_count(vim.api.nvim_buf_get_lines(0, 0, -1, true))
-    vim.api.nvim_win_set_cursor(target_win, { target_line, 0 })
-  end)
-
-  -- return to original window
-  vim.api.nvim_set_current_win(cur_win)
-end
+local cmake_build_job_id = nil
 
 -- scroll quickfix window to end if it's open, without giving it focus
 local function scroll_quickfix_to_end_if_open()
@@ -118,75 +102,76 @@ local function show_cmake_configure_presets()
     },
   }
   pickers.new(opts, {
-    finder = finders.new_async_job({
-      command_generator = function()
-        current_index = 0
-        return { "cmake", "--list-presets" }
-      end,
-      entry_maker = function(entry)
-        if (not string.find(entry, '"')) then
-          return nil
-        end
-        current_index = current_index + 1
-        local preset = getPresetFromEntry(entry)
-        local description = getDescFromEntry(entry)
-        return {
-          value = preset,
-          display = description,
-          ordinal = entry,
-          index = current_index,
-        }
-      end,
-    }),
+      finder = finders.new_async_job({
+        command_generator = function()
+          current_index = 0
+          return { "cmake", "--list-presets" }
+        end,
+        entry_maker = function(entry)
+          if not string.find(entry, '"') then
+            return nil
+          end
+          current_index = current_index + 1
+          local preset = getPresetFromEntry(entry)
+          local description = getDescFromEntry(entry)
+          return {
+            value = preset,
+            display = description,
+            ordinal = entry,
+            index = current_index,
+          }
+        end,
+      }),
 
-    sorter = config.generic_sorter(opts),
+      sorter = config.generic_sorter(opts),
 
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        local selectedPreset = actions_state.get_selected_entry().value
-        last_selected_index = actions_state.get_selected_entry().index - 2
-        log.debug("attach_mappings", selectedPreset)
-        ConfigurePreset = selectedPreset
-        actions.close(prompt_bufnr)
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selectedPreset = actions_state.get_selected_entry().value
+          last_selected_index = actions_state.get_selected_entry().index - 2
+          log.debug("attach_mappings", selectedPreset)
+          ConfigurePreset = selectedPreset
+          actions.close(prompt_bufnr)
 
-        local api = vim.api
-        api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
-        vim.fn.setqflist({})
-        update_notification('CMake configure started for preset: ' .. selectedPreset, 'CMake Configure Progress')
-        local cmd = 'cmake --preset=' .. selectedPreset
-        vim.fn.jobstart(cmd, {
-          stdout_buffered = false,
-          stderr_buffered = true,
-          on_stdout = function(_, data)
-            if data then
-              local progress_message = table.concat(data, "\n")
-              update_notification(progress_message, 'CMake Configure Progress')
-            end
-          end,
-          on_stderr = function(_, data)
-            if data then
-              for _, line in ipairs(data) do
-                vim.fn.setqflist({}, 'a', { lines = { line } })
+          local api = vim.api
+          api.nvim_cmd({ cmd = "wa" }, {}) -- save all buffers
+          vim.fn.setqflist({})
+          update_notification("CMake configure started for preset: " .. selectedPreset, "CMake Configure Progress")
+          local cmd = "cmake --preset=" .. selectedPreset
+          vim.fn.jobstart(cmd, {
+            stdout_buffered = false,
+            stderr_buffered = true,
+            on_stdout = function(_, data)
+              if data then
+                local progress_message = table.concat(data, "\n")
+                update_notification(progress_message, "CMake Configure Progress")
               end
-              scroll_quickfix_to_end_if_open()
-            end
-          end,
-          on_exit = function(_, code)
-            if code == 0 then
-              require("noice").notify("CMake configure completed successfully", "info")
-              vim.cmd('cclose')
-            else
-              require("noice").notify("CMake configure failed", "error")
-              vim.cmd('copen')
-              vim.cmd('cnext')
-              vim.cmd('wincmd p')
-            end
-          end,
-        })
-      end)
-      return true
-    end
-  }):find()
+            end,
+            on_stderr = function(_, data)
+              if data then
+                for _, line in ipairs(data) do
+                  vim.fn.setqflist({}, "a", { lines = { line } })
+                end
+                scroll_quickfix_to_end_if_open()
+              end
+            end,
+            on_exit = function(_, code)
+              if code == 0 then
+                require("noice").notify("CMake configure completed successfully", "info")
+                vim.cmd("cclose")
+              else
+                require("noice").notify("CMake configure failed", "error")
+                vim.cmd("copen")
+                vim.cmd("cnext")
+                vim.cmd("wincmd p")
+              end
+            end,
+          })
+        end)
+        return true
+      end,
+    })
+    :find()
 end
 
 local function show_cmake_build_presets()
@@ -200,97 +185,110 @@ local function show_cmake_build_presets()
       height = 16,
     },
   }
-  pickers.new(opts, {
-    finder = finders.new_async_job({
-      command_generator = function()
-        current_index = 0
-        return { "cmake", "--list-presets=build" }
-      end,
-      entry_maker = function(entry)
-        if (not string.find(entry, '"')) then
-          return nil
-        end
-        current_index = current_index + 1
-        local preset = getPresetFromEntry(entry)
-        local description = getDescFromEntry(entry)
-        return {
-          value = preset,
-          display = description,
-          ordinal = entry,
-          index = current_index,
-        }
-      end,
-    }),
+  pickers
+    .new(opts, {
+      finder = finders.new_async_job({
+        command_generator = function()
+          current_index = 0
+          return { "cmake", "--list-presets=build" }
+        end,
+        entry_maker = function(entry)
+          if not string.find(entry, '"') then
+            return nil
+          end
+          current_index = current_index + 1
+          local preset = getPresetFromEntry(entry)
+          local description = getDescFromEntry(entry)
+          return {
+            value = preset,
+            display = description,
+            ordinal = entry,
+            index = current_index,
+          }
+        end,
+      }),
 
-    sorter = config.generic_sorter(opts),
+      sorter = config.generic_sorter(opts),
 
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        local selectedPreset = actions_state.get_selected_entry().value
-        last_selected_index = actions_state.get_selected_entry().index - 2
-        log.debug("attach_mappings", selectedPreset)
-        BuildPreset = selectedPreset
-        actions.close(prompt_bufnr)
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selectedPreset = actions_state.get_selected_entry().value
+          last_selected_index = actions_state.get_selected_entry().index - 2
+          log.debug("attach_mappings", selectedPreset)
+          BuildPreset = selectedPreset
+          actions.close(prompt_bufnr)
 
-        local api = vim.api
-        api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
-        vim.fn.setqflist({})
+          local api = vim.api
+          api.nvim_cmd({ cmd = "wa" }, {}) -- save all buffers
+          vim.fn.setqflist({})
 
-        -- Start a new task with fidget
-        local handle = progress.handle.create({
-          title = "",
-          message = "Build started for preset: " .. selectedPreset,
-          lsp_client = { name = "CMake Build: " .. selectedPreset },
-        })
+          -- Start a new task with fidget
+          local handle = progress.handle.create({
+            title = "",
+            message = "Build started for preset: " .. selectedPreset,
+            lsp_client = { name = "CMake Build: " .. selectedPreset },
+          })
 
-        local starttime = vim.fn.reltime()
-        local cmd = 'cmake --build --progress --preset=' .. selectedPreset
-        vim.fn.jobstart(cmd, {
-          stdout_buffered = false,
-          stderr_buffered = true,
-          on_stdout = function(_, data)
-            if data then
-              local progress_message = table.concat(data, "\n")
-              handle.message = progress_message
-              for _, line in ipairs(data) do
-                if #line > 1 then
-                  vim.fn.setqflist({}, 'a', { lines = { line } })
+          local starttime = vim.fn.reltime()
+          local cmd = "cmake --build --progress --preset=" .. selectedPreset
+          local scroll_quickfix = true
+          local build_error = false
+          cmake_build_job_id = vim.fn.jobstart(cmd, {
+            stdout_buffered = false,
+            stderr_buffered = true,
+            on_stdout = function(_, data)
+              if data then
+                local progress_message = table.concat(data, "\n")
+                handle.message = progress_message
+                for _, line in ipairs(data) do
+                  if #line > 1 then
+                    if line:find("error:", 1, true) then
+                      update_notification(line, "CMake Build Progress", "error", 10000)
+                      build_error = true
+                    end
+                    if build_error then
+                      vim.fn.setqflist({}, "a", { lines = { line } })
+                    end
+                  end
+                end
+                scroll_quickfix_to_end_if_open()
+              end
+            end,
+            on_stderr = function(_, data)
+              if data then
+                for _, line in ipairs(data) do
+                  if #line > 1 then
+                    vim.fn.setqflist({}, "a", { lines = { line } })
+                  end
+                end
+                scroll_quickfix_to_end_if_open()
+              end
+            end,
+            on_exit = function(_, code)
+              local endtime = vim.fn.reltime()
+              local duration = vim.fn.reltime(starttime, endtime)
+              local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
+              handle.message = duration_message
+              vim.fn.setqflist({}, "a", { lines = { duration_message } })
+              if code == 0 then
+                handle:finish()
+              else
+                handle:cancel()
+
+                if #vim.fn.getqflist() > 0 then
+                  local qflist_title = "CMake build " .. selectedPreset
+                  vim.fn.setqflist({}, "r", { title = qflist_title })
+                  vim.cmd("copen")
                 end
               end
-              scroll_quickfix_to_end_if_open()
-            end
-          end,
-          on_stderr = function(_, data)
-            if data then
-              for _, line in ipairs(data) do
-                if #line > 1 then
-                  vim.fn.setqflist({}, 'a', { lines = { line } })
-                end
-              end
-            end
-          end,
-          on_exit = function(_, code)
-            local endtime = vim.fn.reltime()
-            local duration = vim.fn.reltime(starttime, endtime)
-            local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
-            handle.message = duration_message
-            vim.fn.setqflist({}, 'a', { lines = { duration_message } })
-            if code == 0 then
-              handle:finish()
-              vim.cmd('copen')
-              scroll_to_end(0)
-            else
-              handle:cancel()
-              vim.cmd('copen')
-              vim.cmd('cnext')
-              vim.cmd('wincmd p')
-            end
-          end,
-        })
-      end)
-      return true
-    end
-  }):find()
+              cmake_build_job_id = nil
+            end,
+          })
+        end)
+        return true
+      end,
+    })
+    :find()
 end
 
 local function show_cmake_build_presets_with_target()
@@ -304,96 +302,96 @@ local function show_cmake_build_presets_with_target()
       height = 16,
     },
   }
-  pickers.new(opts, {
-    finder = finders.new_async_job({
-      command_generator = function()
-        current_index = 0
-        return { "cmake", "--list-presets=build" }
-      end,
-      entry_maker = function(entry)
-        if (not string.find(entry, '"')) then
-          return nil
-        end
-        current_index = current_index + 1
-        local preset = getPresetFromEntry(entry)
-        local description = getDescFromEntry(entry)
-        return {
-          value = preset,
-          display = description,
-          ordinal = entry,
-          index = current_index,
-        }
-      end,
-    }),
+  pickers
+    .new(opts, {
+      finder = finders.new_async_job({
+        command_generator = function()
+          current_index = 0
+          return { "cmake", "--list-presets=build" }
+        end,
+        entry_maker = function(entry)
+          if not string.find(entry, '"') then
+            return nil
+          end
+          current_index = current_index + 1
+          local preset = getPresetFromEntry(entry)
+          local description = getDescFromEntry(entry)
+          return {
+            value = preset,
+            display = description,
+            ordinal = entry,
+            index = current_index,
+          }
+        end,
+      }),
 
-    sorter = config.generic_sorter(opts),
+      sorter = config.generic_sorter(opts),
 
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        local selectedPreset = actions_state.get_selected_entry().value
-        last_selected_index = actions_state.get_selected_entry().index - 2
-        log.debug("attach_mappings", selectedPreset)
-        BuildPreset = selectedPreset
-        actions.close(prompt_bufnr)
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selectedPreset = actions_state.get_selected_entry().value
+          last_selected_index = actions_state.get_selected_entry().index - 2
+          log.debug("attach_mappings", selectedPreset)
+          BuildPreset = selectedPreset
+          actions.close(prompt_bufnr)
 
-        local api = vim.api
-        api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
-        vim.fn.setqflist({})
+          local api = vim.api
+          api.nvim_cmd({ cmd = "wa" }, {}) -- save all buffers
+          vim.fn.setqflist({})
 
-        -- Start a new task with fidget
-        local handle = progress.handle.create({
-          title = "",
-          message = "Build started for preset: " .. selectedPreset,
-          lsp_client = { name = "CMake Build: " .. selectedPreset },
-        })
+          -- Start a new task with fidget
+          local handle = progress.handle.create({
+            title = "",
+            message = "Build started for preset: " .. selectedPreset,
+            lsp_client = { name = "CMake Build: " .. selectedPreset },
+          })
 
-        local starttime = vim.fn.reltime()
-        local cmd = 'cmake --build --progress --preset=' .. selectedPreset
-        vim.fn.jobstart(cmd, {
-          stdout_buffered = false,
-          stderr_buffered = true,
-          on_stdout = function(_, data)
-            if data then
-              local progress_message = table.concat(data, "\n")
-              handle.message = progress_message
-              for _, line in ipairs(data) do
-                if #line > 1 then
-                  vim.fn.setqflist({}, 'a', { lines = { line } })
+          local starttime = vim.fn.reltime()
+          local cmd = "cmake --build --progress --preset=" .. selectedPreset
+          vim.fn.jobstart(cmd, {
+            stdout_buffered = false,
+            stderr_buffered = true,
+            on_stdout = function(_, data)
+              if data then
+                local progress_message = table.concat(data, "\n")
+                handle.message = progress_message
+                for _, line in ipairs(data) do
+                  if #line > 1 then
+                    vim.fn.setqflist({}, "a", { lines = { line } })
+                  end
                 end
               end
-            end
-          end,
-          on_stderr = function(_, data)
-            if data then
-              for _, line in ipairs(data) do
-                if #line > 1 then
-                  vim.fn.setqflist({}, 'a', { lines = { line } })
+            end,
+            on_stderr = function(_, data)
+              if data then
+                for _, line in ipairs(data) do
+                  if #line > 1 then
+                    vim.fn.setqflist({}, "a", { lines = { line } })
+                  end
                 end
               end
-            end
-          end,
-          on_exit = function(_, code)
-            local endtime = vim.fn.reltime()
-            local duration = vim.fn.reltime(starttime, endtime)
-            local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
-            handle.message = duration_message
-            vim.fn.setqflist({}, 'a', { lines = { duration_message } })
-            if code == 0 then
-              handle:finish()
-              vim.cmd('copen')
-              scroll_to_end(0)
-            else
-              handle:cancel()
-              vim.cmd('copen')
-              vim.cmd('cnext')
-              vim.cmd('wincmd p')
-            end
-          end,
-        })
-      end)
-      return true
-    end
-  }):find()
+            end,
+            on_exit = function(_, code)
+              local endtime = vim.fn.reltime()
+              local duration = vim.fn.reltime(starttime, endtime)
+              local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
+              handle.message = duration_message
+              vim.fn.setqflist({}, "a", { lines = { duration_message } })
+              if code == 0 then
+                handle:finish()
+              else
+                handle:cancel()
+                vim.cmd("copen")
+                vim.cmd("cnext")
+                vim.cmd("wincmd p")
+              end
+            end,
+          })
+        end)
+        return true
+      end,
+    })
+    :find()
 end
 
 local function get_build_preset()
@@ -404,7 +402,15 @@ local get_configure_preset = function()
   return ConfigurePreset
 end
 
-
+local function stop_current_cmake_build()
+  if cmake_build_job_id ~= nil then
+    vim.fn.jobstop(cmake_build_job_id)
+    cmake_build_job_id = nil
+    update_notification("CMake build process stopped", "CMake Build")
+  else
+    update_notification("No active CMake build process to stop", "CMake Build", "warn")
+  end
+end
 
 local function pick_cmd_result(picker_opts)
   local function finder(opts, ctx)
@@ -501,6 +507,7 @@ return require("telescope").register_extension({
     show_cmake_configure_presets = show_cmake_configure_presets,
     show_cmake_build_presets = show_cmake_build_presets,
     show_cmake_build_presets_with_target = show_cmake_build_presets_with_target,
+    stop_current_cmake_build = stop_current_cmake_build,
     get_build_preset = get_build_preset,
     get_configure_preset = get_configure_preset,
   },
