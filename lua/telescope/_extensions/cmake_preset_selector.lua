@@ -231,8 +231,8 @@ local function show_cmake_build_presets()
 
           local starttime = vim.fn.reltime()
           local cmd = "cmake --build --progress --preset=" .. selectedPreset
-          local scroll_quickfix = true
           local build_error = false
+          local build_error_messages = {}
           cmake_build_job_id = vim.fn.jobstart(cmd, {
             stdout_buffered = false,
             stderr_buffered = true,
@@ -242,12 +242,16 @@ local function show_cmake_build_presets()
                 handle.message = progress_message
                 for _, line in ipairs(data) do
                   if #line > 1 then
-                    if line:find("error:", 1, true) then
+                    if line:find("error:", 1, true) and build_error == false then
                       update_notification(line, "CMake Build Progress", "error", 10000)
+                      vim.fn.setqflist({}, "r", { title = "CMake Build Errors: " .. selectedPreset })
+                      vim.fn.setqflist({}, "a", { lines = build_error_messages })
                       build_error = true
                     end
                     if build_error then
                       vim.fn.setqflist({}, "a", { lines = { line } })
+                    else
+                      table.insert(build_error_messages,line)
                     end
                   end
                 end
