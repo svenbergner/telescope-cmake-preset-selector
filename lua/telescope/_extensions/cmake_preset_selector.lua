@@ -101,7 +101,8 @@ local function show_cmake_configure_presets()
       height = 16,
     },
   }
-  pickers.new(opts, {
+  pickers
+    .new(opts, {
       finder = finders.new_async_job({
         command_generator = function()
           current_index = 0
@@ -251,7 +252,7 @@ local function show_cmake_build_presets()
                     if build_error then
                       vim.fn.setqflist({}, "a", { lines = { line } })
                     else
-                      table.insert(build_error_messages,line)
+                      table.insert(build_error_messages, line)
                     end
                   end
                 end
@@ -295,9 +296,131 @@ local function show_cmake_build_presets()
     :find()
 end
 
+-- Helper function to show target picker and start build
+local function show_cmake_target_picker(selectedPreset)
+  local opts = {
+    results_title = "CMake Custom Targets",
+    prompt_title = "",
+    layout_strategy = "vertical",
+    layout_config = {
+      width = 50,
+      height = 18,
+    },
+  }
+
+  pickers
+    .new(opts, {
+      finder = finders.new_async_job({
+        command_generator = function()
+          current_index = 0
+          return {
+            "bash",
+            "-c",
+            'rg add_custom_target -g "!ExternalLibs/" -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq'
+          }
+        end,
+        entry_maker = function(entry)
+          if entry == "" or entry == nil then
+            return nil
+          end
+          current_index = current_index + 1
+          return {
+            value = entry,
+            display = entry,
+            ordinal = entry,
+            index = current_index,
+          }
+        end,
+      }),
+
+      sorter = config.generic_sorter(opts),
+
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selectedTarget = actions_state.get_selected_entry().value
+          log.debug("Selected target", selectedTarget)
+          actions.close(prompt_bufnr)
+
+          local api = vim.api
+          api.nvim_cmd({ cmd = "wa" }, {}) -- save all buffers
+          vim.fn.setqflist({})
+
+          -- Start a new task with fidget
+          local handle = progress.handle.create({
+            title = "",
+            message = "Build started for preset: " .. selectedPreset .. " with target: " .. selectedTarget,
+            lsp_client = { name = "CMake Build: " .. selectedPreset .. " [" .. selectedTarget .. "]" },
+          })
+
+          local starttime = vim.fn.reltime()
+          local cmd = "cmake --build --preset=" .. selectedPreset .. " --target " .. selectedTarget
+          local build_error = false
+          local build_error_messages = {}
+          cmake_build_job_id = vim.fn.jobstart(cmd, {
+            stdout_buffered = false,
+            stderr_buffered = true,
+            on_stdout = function(_, data)
+              if data then
+                local progress_message = table.concat(data, "\n")
+                handle.message = progress_message
+                for _, line in ipairs(data) do
+                  if #line > 1 then
+                    if line:find("error:", 1, true) and build_error == false then
+                      update_notification(line, "CMake Build Progress", "error", 10000)
+                      vim.fn.setqflist({}, "r", { title = "CMake Build Errors: " .. selectedPreset .. " [" .. selectedTarget .. "]" })
+                      vim.fn.setqflist({}, "a", { lines = build_error_messages })
+                      build_error = true
+                    end
+                    if build_error then
+                      vim.fn.setqflist({}, "a", { lines = { line } })
+                    else
+                      table.insert(build_error_messages, line)
+                    end
+                  end
+                end
+                scroll_quickfix_to_end_if_open()
+              end
+            end,
+            on_stderr = function(_, data)
+              if data then
+                for _, line in ipairs(data) do
+                  if #line > 1 then
+                    vim.fn.setqflist({}, "a", { lines = { line } })
+                  end
+                end
+                scroll_quickfix_to_end_if_open()
+              end
+            end,
+            on_exit = function(_, code)
+              local endtime = vim.fn.reltime()
+              local duration = vim.fn.reltime(starttime, endtime)
+              local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
+              handle.message = duration_message
+              vim.fn.setqflist({}, "a", { lines = { duration_message } })
+              if code == 0 then
+                handle:finish()
+              else
+                handle:cancel()
+
+                if #vim.fn.getqflist() > 0 then
+                  local qflist_title = "CMake build " .. selectedPreset .. " [" .. selectedTarget .. "]"
+                  vim.fn.setqflist({}, "r", { title = qflist_title })
+                  vim.cmd("copen")
+                end
+              end
+              cmake_build_job_id = nil
+            end,
+          })
+        end)
+        return true
+      end,
+    })
+    :find()
+end
+
 local function show_cmake_build_presets_with_target()
   local opts = {
-    results_title = "CMake Build Presets",
+    results_title = "CMake Build Presets (with Target)",
     prompt_title = "",
     default_selection_index = last_selected_index,
     layout_strategy = "vertical",
@@ -335,62 +458,12 @@ local function show_cmake_build_presets_with_target()
         actions.select_default:replace(function()
           local selectedPreset = actions_state.get_selected_entry().value
           last_selected_index = actions_state.get_selected_entry().index - 2
-          log.debug("attach_mappings", selectedPreset)
+          log.debug("Selected preset", selectedPreset)
           BuildPreset = selectedPreset
           actions.close(prompt_bufnr)
 
-          local api = vim.api
-          api.nvim_cmd({ cmd = "wa" }, {}) -- save all buffers
-          vim.fn.setqflist({})
-
-          -- Start a new task with fidget
-          local handle = progress.handle.create({
-            title = "",
-            message = "Build started for preset: " .. selectedPreset,
-            lsp_client = { name = "CMake Build: " .. selectedPreset },
-          })
-
-          local starttime = vim.fn.reltime()
-          local cmd = "cmake --build --progress --preset=" .. selectedPreset
-          vim.fn.jobstart(cmd, {
-            stdout_buffered = false,
-            stderr_buffered = true,
-            on_stdout = function(_, data)
-              if data then
-                local progress_message = table.concat(data, "\n")
-                handle.message = progress_message
-                for _, line in ipairs(data) do
-                  if #line > 1 then
-                    vim.fn.setqflist({}, "a", { lines = { line } })
-                  end
-                end
-              end
-            end,
-            on_stderr = function(_, data)
-              if data then
-                for _, line in ipairs(data) do
-                  if #line > 1 then
-                    vim.fn.setqflist({}, "a", { lines = { line } })
-                  end
-                end
-              end
-            end,
-            on_exit = function(_, code)
-              local endtime = vim.fn.reltime()
-              local duration = vim.fn.reltime(starttime, endtime)
-              local duration_message = "Build finished in " .. format_time(duration) .. " with return code " .. code
-              handle.message = duration_message
-              vim.fn.setqflist({}, "a", { lines = { duration_message } })
-              if code == 0 then
-                handle:finish()
-              else
-                handle:cancel()
-                vim.cmd("copen")
-                vim.cmd("cnext")
-                vim.cmd("wincmd p")
-              end
-            end,
-          })
+          -- After preset selection, show target picker
+          show_cmake_target_picker(selectedPreset)
         end)
         return true
       end,
@@ -444,8 +517,6 @@ end
 local Snacks = require("snacks")
 -- Custom Pickers
 Custom_pickers = {}
-
--- cmake_build_preset_with_target='cmake --build --preset=$(cmake --list-presets=build | tail -n +3 | fzf | cut -d '\''"'\'' -f2) --target=$(rg add_custom_target -g !ExternalLibs/ -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq | fzf)'
 
 function Custom_pickers.cmake_build_preset_with_target()
   local preset = ""
