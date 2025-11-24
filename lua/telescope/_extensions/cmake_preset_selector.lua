@@ -137,7 +137,15 @@ local function show_cmake_configure_presets()
           local api = vim.api
           api.nvim_cmd({ cmd = "wa" }, {}) -- save all buffers
           vim.fn.setqflist({})
-          update_notification("CMake configure started for preset: " .. selectedPreset, "CMake Configure Progress")
+
+          -- Start a new task with fidget
+          local handle = progress.handle.create({
+            title = "",
+            message = "Configuration started for preset: " .. selectedPreset,
+            lsp_client = { name = "CMake Configure: " .. selectedPreset },
+          })
+
+          -- update_notification("CMake configure started for preset: " .. selectedPreset, "CMake Configure Progress")
           local cmd = "cmake --preset=" .. selectedPreset
           vim.fn.jobstart(cmd, {
             stdout_buffered = false,
@@ -145,7 +153,8 @@ local function show_cmake_configure_presets()
             on_stdout = function(_, data)
               if data then
                 local progress_message = table.concat(data, "\n")
-                update_notification(progress_message, "CMake Configure Progress")
+                -- update_notification(progress_message, "CMake Configure Progress")
+                handle.message = progress_message
               end
             end,
             on_stderr = function(_, data)
@@ -158,10 +167,10 @@ local function show_cmake_configure_presets()
             end,
             on_exit = function(_, code)
               if code == 0 then
-                require("noice").notify("CMake configure completed successfully", "info")
+                require("noice").notify("CMake configure successfully completed: " .. selectedPreset, "info")
                 vim.cmd("cclose")
               else
-                require("noice").notify("CMake configure failed", "error")
+                require("noice").notify("CMake configure failed: " .. selectedPreset, "error")
                 vim.cmd("copen")
                 vim.cmd("cnext")
                 vim.cmd("wincmd p")
