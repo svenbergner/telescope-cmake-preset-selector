@@ -8,12 +8,13 @@ local progress = require("fidget.progress")
 local scroll_quickfix_to_end_if_open = require("helpers").scroll_quickfix_to_end_if_open
 local getPresetFromEntry = require("helpers").getPresetFromEntry
 local getDescFromEntry = require("helpers").getDescFromEntry
+local get_current_index = require("helpers").get_current_index
+local set_current_index = require("helpers").set_current_index
+local get_last_selected_index = require("helpers").get_last_selected_index
+local set_last_selected_index = require("helpers").set_last_selected_index
 
 local log = require("plenary.log"):new()
 -- log.level = 'debug'
-
-local current_index = 0
-local last_selected_index = 1
 
 local M = {}
 
@@ -21,7 +22,7 @@ function M.show_cmake_configure_presets()
   local opts = {
     results_title = "CMake Configure Presets",
     prompt_title = "",
-    default_selection_index = last_selected_index,
+    default_selection_index = get_last_selected_index(),
     layout_strategy = "vertical",
     layout_config = {
       width = 50,
@@ -32,21 +33,21 @@ function M.show_cmake_configure_presets()
     .new(opts, {
       finder = finders.new_async_job({
         command_generator = function()
-          current_index = 0
+          set_current_index(0)
           return { "cmake", "--list-presets" }
         end,
         entry_maker = function(entry)
           if not string.find(entry, '"') then
             return nil
           end
-          current_index = current_index + 1
+          set_current_index(get_current_index() + 1)
           local preset = getPresetFromEntry(entry)
           local description = getDescFromEntry(entry)
           return {
             value = preset,
             display = description,
             ordinal = entry,
-            index = current_index,
+            index = get_current_index(),
           }
         end,
       }),
@@ -56,7 +57,7 @@ function M.show_cmake_configure_presets()
       attach_mappings = function(prompt_bufnr)
         actions.select_default:replace(function()
           local selectedPreset = actions_state.get_selected_entry().value
-          last_selected_index = actions_state.get_selected_entry().index - 2
+          set_last_selected_index(actions_state.get_selected_entry().index - 2)
           log.debug("attach_mappings", selectedPreset)
           ConfigurePreset = selectedPreset
           actions.close(prompt_bufnr)

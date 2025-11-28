@@ -1,6 +1,8 @@
 local configure_preset = ""
 local build_preset = ""
 local cmake_build_job_id = nil
+local current_index = 0
+local last_selected_index = 1
 
 local M = {}
 
@@ -32,6 +34,23 @@ end
 function M.get_cmake_build_job_id()
   return cmake_build_job_id
 end
+
+function M.get_current_index()
+  return current_index
+end
+
+function M.set_current_index(index)
+  current_index = index
+end
+
+function M.get_last_selected_index()
+  return last_selected_index
+end
+
+function M.set_last_selected_index(index)
+  last_selected_index = index
+end
+
 
 -- scroll quickfix window to end if it's open, without giving it focus
 function M.scroll_quickfix_to_end_if_open()

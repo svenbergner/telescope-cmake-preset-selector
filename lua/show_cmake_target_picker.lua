@@ -9,11 +9,11 @@ local scroll_quickfix_to_end_if_open = require("helpers").scroll_quickfix_to_end
 local format_time = require("helpers").format_time
 local update_notification = require("helpers").update_notification
 local set_cmake_build_job_id = require("helpers").set_cmake_build_job_id
+local get_current_index = require("helpers").get_current_index
+local set_current_index = require("helpers").set_current_index
 
 local log = require("plenary.log"):new()
 -- log.level = 'debug'
-
-local current_index = 0
 
 local M = {}
 
@@ -33,23 +33,23 @@ function M.show_cmake_target_picker(selectedPreset)
     .new(opts, {
       finder = finders.new_async_job({
         command_generator = function()
-          current_index = 0
+          set_current_index(0)
           return {
             "bash",
             "-c",
-            'rg add_custom_target -g "!ExternalLibs/" -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq'
+            'rg add_custom_target -g "!ExternalLibs/" -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq',
           }
         end,
         entry_maker = function(entry)
           if entry == "" or entry == nil then
             return nil
           end
-          current_index = current_index + 1
+          set_current_index(get_current_index() + 1)
           return {
             value = entry,
             display = entry,
             ordinal = entry,
-            index = current_index,
+            index = get_current_index(),
           }
         end,
       }),
@@ -88,7 +88,11 @@ function M.show_cmake_target_picker(selectedPreset)
                   if #line > 1 then
                     if line:find("error:", 1, true) and build_error == false then
                       update_notification(line, "CMake Build Progress", "error", 10000)
-                      vim.fn.setqflist({}, "r", { title = "CMake Build Errors: " .. selectedPreset .. " [" .. selectedTarget .. "]" })
+                      vim.fn.setqflist(
+                        {},
+                        "r",
+                        { title = "CMake Build Errors: " .. selectedPreset .. " [" .. selectedTarget .. "]" }
+                      )
                       vim.fn.setqflist({}, "a", { lines = build_error_messages })
                       build_error = true
                     end
@@ -141,4 +145,3 @@ function M.show_cmake_target_picker(selectedPreset)
 end
 
 return M
-
