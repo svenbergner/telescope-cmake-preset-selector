@@ -29,10 +29,8 @@ local function show_last_build_messages()
    -- Set buffer options
    vim.bo[buf].bufhidden = 'wipe'
    vim.bo[buf].filetype = 'cmake_build_messages'
-   vim.bo[buf].modifiable = false
 
    -- Set buffer content
-   vim.bo[buf].modifiable = true
    vim.api.nvim_buf_set_lines(buf, 0, -1, false, last_build_messages)
    vim.bo[buf].modifiable = false
 
