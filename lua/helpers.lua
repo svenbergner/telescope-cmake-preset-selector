@@ -3,8 +3,17 @@ local build_preset = ""
 local cmake_build_job_id = nil
 local current_index = 0
 local last_selected_index = 1
+local last_build_messages = {}
 
 local M = {}
+
+function M.get_last_build_messages()
+  return last_build_messages
+end
+
+function M.set_last_build_messages(messages)
+  last_build_messages = messages
+end
 
 function M.get_build_preset()
   return build_preset

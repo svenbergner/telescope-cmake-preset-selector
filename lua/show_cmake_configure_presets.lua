@@ -12,6 +12,7 @@ local get_current_index = require("helpers").get_current_index
 local set_current_index = require("helpers").set_current_index
 local get_last_selected_index = require("helpers").get_last_selected_index
 local set_last_selected_index = require("helpers").set_last_selected_index
+local set_last_build_messages = require('helpers').set_last_build_messages
 
 local log = require("plenary.log"):new()
 -- log.level = 'debug'
@@ -56,6 +57,7 @@ function M.show_cmake_configure_presets()
 
       attach_mappings = function(prompt_bufnr)
         actions.select_default:replace(function()
+          local messages = {}
           local selectedPreset = actions_state.get_selected_entry().value
           set_last_selected_index(actions_state.get_selected_entry().index - 2)
           log.debug("attach_mappings", selectedPreset)
@@ -83,22 +85,28 @@ function M.show_cmake_configure_presets()
                 local progress_message = table.concat(data, "\n")
                 -- update_notification(progress_message, "CMake Configure Progress")
                 handle.message = progress_message
+                table.insert(messages, progress_message)
               end
             end,
             on_stderr = function(_, data)
               if data then
                 for _, line in ipairs(data) do
                   vim.fn.setqflist({}, "a", { lines = { line } })
+                  table.insert(messages, line)
                 end
                 scroll_quickfix_to_end_if_open()
               end
             end,
             on_exit = function(_, code)
               if code == 0 then
-                require("noice").notify("CMake configure successfully completed: " .. selectedPreset, "info")
+                local success_messages = "CMake configure successfully completed: " .. selectedPreset
+                require("noice").notify( success_messages, "info")
+                table.insert(messages, success_messages)
                 vim.cmd("cclose")
               else
-                require("noice").notify("CMake configure failed: " .. selectedPreset, "error")
+                local failure_messages = "CMake configure failed: " .. selectedPreset
+                require("noice").notify(failure_messages, "error")
+                table.insert(messages, failure_messages)
                 vim.cmd("copen")
                 vim.cmd("cnext")
                 vim.cmd("wincmd p")
