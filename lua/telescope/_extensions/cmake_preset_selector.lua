@@ -58,16 +58,16 @@ local function show_last_build_messages()
    local win = vim.api.nvim_open_win(buf, true, win_opts)
 
    -- Set window options
-   vim.api.nvim_win_set_option(win, 'wrap', false)
-   vim.api.nvim_win_set_option(win, 'cursorline', true)
+   vim.api.nvim_set_option_value('wrap', false, { win = win })
+   vim.api.nvim_set_option_value('cursorline', true, { win = win })
 
    -- Set keymaps to close the window with 'q' or '<Esc>'
-   local keymaps = {'q', '<Esc>'}
+   local keymaps = { 'q', '<Esc>' }
    for _, key in ipairs(keymaps) do
       vim.api.nvim_buf_set_keymap(buf, 'n', key, ':close<CR>', {
          nowait = true,
          noremap = true,
-         silent = true
+         silent = true,
       })
    end
 
