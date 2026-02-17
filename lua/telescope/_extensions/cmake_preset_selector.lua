@@ -97,11 +97,6 @@ local function show_last_build_messages()
       })
    end
 
-   -- Calculate layout
-   local max_height = math.floor(vim.o.lines * 0.8)
-   local min_height = 10
-   local height = math.max(min_height, math.min(#entries, max_height))
-
    -- Show telescope picker to select which build messages to view
    pickers.new({}, {
       prompt_title = 'Select Build Messages to View',
@@ -116,9 +111,19 @@ local function show_last_build_messages()
          end,
       }),
       sorter = conf.generic_sorter({}),
+      previewer = require('telescope.previewers').new_buffer_previewer({
+         title = 'Build Messages Preview',
+         define_preview = function(self, entry)
+            -- Set preview buffer content to the messages
+            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, entry.value.messages)
+            -- Set syntax highlighting for cmake_build_messages
+            vim.bo[self.state.bufnr].filetype = 'cmake_build_messages'
+         end,
+      }),
       layout_config = {
-         height = height,
-         width = 0.4,
+         height = 0.8,
+         width = 0.8,
+         preview_width = 0.7,
       },
       attach_mappings = function(prompt_bufnr)
          actions.select_default:replace(function()
