@@ -4,6 +4,13 @@ local get_configure_preset = require('helpers').get_configure_preset
 local get_cmake_build_job_id = require('helpers').get_cmake_build_job_id
 local set_cmake_build_job_id = require('helpers').set_cmake_build_job_id
 local get_last_build_messages = require('helpers').get_last_build_messages
+local get_last_build_message = require('helpers').get_last_build_message
+
+local pickers = require('telescope.pickers')
+local finders = require('telescope.finders')
+local conf = require('telescope.config').values
+local actions = require('telescope.actions')
+local action_state = require('telescope.actions.state')
 
 local function stop_current_cmake_build()
    local cmake_build_job_id = get_cmake_build_job_id()
@@ -16,13 +23,8 @@ local function stop_current_cmake_build()
    end
 end
 
-local function show_last_build_messages()
-   local last_build_messages = get_last_build_messages()
-   if #last_build_messages == 0 then
-      update_notification('No build messages available', 'CMake Build', 'info')
-      return
-   end
-
+-- Helper function to display messages in a floating window
+local function show_messages_in_floating_window(messages, title)
    -- Create a new buffer
    local buf = vim.api.nvim_create_buf(false, true)
 
@@ -31,7 +33,7 @@ local function show_last_build_messages()
    vim.bo[buf].filetype = 'cmake_build_messages'
 
    -- Set buffer content
-   vim.api.nvim_buf_set_lines(buf, 0, -1, false, last_build_messages)
+   vim.api.nvim_buf_set_lines(buf, 0, -1, false, messages)
    vim.bo[buf].modifiable = false
 
    -- Calculate window size
@@ -49,7 +51,7 @@ local function show_last_build_messages()
       col = col,
       style = 'minimal',
       border = 'rounded',
-      title = ' CMake Build Messages ',
+      title = title,
       title_pos = 'center',
    }
 
@@ -68,8 +70,86 @@ local function show_last_build_messages()
          silent = true,
       })
    end
+end
 
-   update_notification('Displaying last build messages (press q to close)', 'CMake Build', 'info')
+local function show_last_build_messages()
+   local all_messages = get_last_build_messages()
+
+   if #all_messages == 0 then
+      update_notification('No build messages available', 'CMake Build', 'warn')
+      return
+   end
+
+   -- Create entries for telescope picker (reversed so newest is first)
+   local entries = {}
+   for i = #all_messages, 1, -1 do
+      local entry = all_messages[i]
+      local display_text = string.format('[%s] %s - %d messages',
+         entry.timestamp,
+         entry.preset,
+         #entry.messages)
+      table.insert(entries, {
+         index = i,
+         display = display_text,
+         preset = entry.preset,
+         timestamp = entry.timestamp,
+         messages = entry.messages
+      })
+   end
+
+   -- Calculate layout
+   local max_height = math.floor(vim.o.lines * 0.8)
+   local min_height = 10
+   local height = math.max(min_height, math.min(#entries, max_height))
+
+   -- Show telescope picker to select which build messages to view
+   pickers.new({}, {
+      prompt_title = 'Select Build Messages to View',
+      finder = finders.new_table({
+         results = entries,
+         entry_maker = function(entry)
+            return {
+               value = entry,
+               display = entry.display,
+               ordinal = entry.display,
+            }
+         end,
+      }),
+      sorter = conf.generic_sorter({}),
+      layout_config = {
+         height = height,
+         width = 0.4,
+      },
+      attach_mappings = function(prompt_bufnr)
+         actions.select_default:replace(function()
+            actions.close(prompt_bufnr)
+            local selection = action_state.get_selected_entry()
+            if selection then
+               -- Show messages in floating window
+               local title = string.format(' CMake Build Messages - [%s] %s ',
+                  selection.value.timestamp,
+                  selection.value.preset)
+               show_messages_in_floating_window(selection.value.messages, title)
+            end
+         end)
+         return true
+      end,
+   }):find()
+end
+
+local function show_last_build_message()
+   local last_message = get_last_build_message()
+
+   if last_message == nil then
+      update_notification('No build messages available', 'CMake Build', 'warn')
+      return
+   end
+
+   -- Show the last build messages in floating window
+   local title = string.format(' CMake Build Messages - [%s] %s ',
+      last_message.timestamp,
+      last_message.preset)
+   show_messages_in_floating_window(last_message.messages, title)
 end
 
 return require('telescope').register_extension({
@@ -78,6 +158,7 @@ return require('telescope').register_extension({
       show_cmake_build_presets = require('show_cmake_build_presets').show_cmake_build_presets,
       show_cmake_build_presets_with_target = require('show_cmake_build_presets_with_target').show_cmake_build_presets_with_target,
       show_last_build_messages = show_last_build_messages,
+      show_last_build_message = show_last_build_message,
       stop_current_cmake_build = stop_current_cmake_build,
       get_build_preset = get_build_preset,
       get_configure_preset = get_configure_preset,

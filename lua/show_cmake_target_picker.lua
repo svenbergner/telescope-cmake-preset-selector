@@ -146,7 +146,7 @@ function M.show_cmake_target_picker(selectedPreset)
                      set_cmake_build_job_id(nil)
                   end,
                })
-               set_last_build_messages(build_error_messages)
+               set_last_build_messages(selectedPreset, build_error_messages)
                set_cmake_build_job_id(cmake_build_job_id)
             end)
             -- local mode = vim.api.nvim_get_mode().mode

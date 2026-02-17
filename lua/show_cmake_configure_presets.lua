@@ -118,7 +118,7 @@ function M.show_cmake_configure_presets()
                      end
                   end,
                })
-               set_last_build_messages(messages)
+               set_last_build_messages(selectedPreset, messages)
             end)
             return true
          end,

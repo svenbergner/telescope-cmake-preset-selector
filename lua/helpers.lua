@@ -3,16 +3,31 @@ local build_preset = ""
 local cmake_build_job_id = nil
 local current_index = 0
 local last_selected_index = 1
-local last_build_messages = {}
+local last_build_messages = {} -- Array of {preset, timestamp, messages}
 
 local M = {}
 
+-- Returns all stored build messages
 function M.get_last_build_messages()
   return last_build_messages
 end
 
-function M.set_last_build_messages(messages)
-  last_build_messages = messages
+-- Adds a new build message entry with preset and timestamp
+function M.set_last_build_messages(preset, messages)
+  local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+  table.insert(last_build_messages, {
+    preset = preset,
+    timestamp = timestamp,
+    messages = messages
+  })
+end
+
+-- Returns only the last (most recent) build message entry
+function M.get_last_build_message()
+  if #last_build_messages == 0 then
+    return nil
+  end
+  return last_build_messages[#last_build_messages]
 end
 
 function M.get_build_preset()
