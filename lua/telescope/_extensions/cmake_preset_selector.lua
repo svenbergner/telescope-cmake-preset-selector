@@ -84,7 +84,7 @@ local function show_last_build_messages()
    local entries = {}
    for i = #all_messages, 1, -1 do
       local entry = all_messages[i]
-      local display_text = string.format('[%s] %s - %d messages',
+      local display_text = string.format('[%s] %s - %d lines',
          entry.timestamp,
          entry.preset,
          #entry.messages)
