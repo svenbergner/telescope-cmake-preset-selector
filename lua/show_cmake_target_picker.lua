@@ -89,17 +89,9 @@ function M.show_cmake_target_picker(selectedPreset)
                            if #line > 1 then
                               if line:find('error:', 1, true) and build_error == false then
                                  update_notification(line, 'CMake Build Progress', 'error', 10000)
-                                 vim.fn.setqflist(
-                                    {},
-                                    'r',
-                                    {
-                                       title = 'CMake Build Errors: '
-                                          .. selectedPreset
-                                          .. ' ['
-                                          .. selectedTarget
-                                          .. ']',
-                                    }
-                                 )
+                                 vim.fn.setqflist({}, 'r', {
+                                    title = 'CMake Build Errors: ' .. selectedPreset .. ' [' .. selectedTarget .. ']',
+                                 })
                                  vim.fn.setqflist({}, 'a', { lines = build_error_messages })
                                  build_error = true
                               end
@@ -146,7 +138,8 @@ function M.show_cmake_target_picker(selectedPreset)
                      set_cmake_build_job_id(nil)
                   end,
                })
-               set_last_build_messages(selectedPreset, build_error_messages)
+               local preset = selectedPreset .. '[' .. selectedTarget .. ']'
+               set_last_build_messages(preset, build_error_messages)
                set_cmake_build_job_id(cmake_build_job_id)
             end)
             -- local mode = vim.api.nvim_get_mode().mode
