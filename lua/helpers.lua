@@ -60,7 +60,7 @@ function M.reset_cmake_presets()
   build_preset = ""
 end
 
---- @param job_id number The job ID of the currently running CMake build
+--- @param job_id number|nil The job ID of the currently running CMake build
 function M.set_cmake_build_job_id(job_id)
   cmake_build_job_id = job_id
 end

@@ -28,7 +28,7 @@ local function pick_cmd_result(picker_opts)
 end
 
 -- Snacks custom pickers
-local Snacks = require("snacks")
+-- local Snacks = require("snacks")
 -- Custom Pickers
 Custom_pickers = {}
 
@@ -77,7 +77,7 @@ function Custom_pickers.cmake_build_preset_with_target()
       return true
     end,
     transform = function(item)
-      local preset = getPresetFromEntry(item.text)
+      preset = getPresetFromEntry(item.text)
       local description = getDescFromEntry(item.text)
       item.preset = preset
       item.description = description
