@@ -22,6 +22,7 @@ local log = require('plenary.log'):new()
 
 local M = {}
 
+--- Helper function to show CMake build presets and start build
 function M.show_cmake_build_presets()
    local opts = {
       results_title = 'CMake Build Presets',

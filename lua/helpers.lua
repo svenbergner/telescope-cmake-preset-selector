@@ -8,11 +8,14 @@ local last_build_messages = {} -- Array of {preset, timestamp, messages}
 local M = {}
 
 -- Returns all stored build messages
+---@return table
 function M.get_last_build_messages()
   return last_build_messages
 end
 
--- Adds a new build message entry with preset and timestamp
+-- Adds a new build message entry with preset and timestamps
+--- @param preset string The build preset used for this build
+--- @param messages table An array of messages related to the build
 function M.set_last_build_messages(preset, messages)
   local timestamp = os.date("%Y-%m-%d %H:%M:%S")
   table.insert(last_build_messages, {
@@ -23,6 +26,7 @@ function M.set_last_build_messages(preset, messages)
 end
 
 -- Returns only the last (most recent) build message entry
+--- @return table|nil The most recent build message entry or nil if none exist
 function M.get_last_build_message()
   if #last_build_messages == 0 then
     return nil
@@ -30,47 +34,60 @@ function M.get_last_build_message()
   return last_build_messages[#last_build_messages]
 end
 
+--- @return string The currently set CMake build preset
 function M.get_build_preset()
   return build_preset
 end
 
+--- @return string The currently set CMake configure preset
 function M.get_configure_preset()
   return configure_preset
 end
 
+--- @param preset string The CMake build preset to set
 function M.set_build_preset(preset)
   build_preset = preset
 end
 
+--- @param preset string The CMake configure preset to set
 function M.set_configure_preset(preset)
   configure_preset = preset
 end
 
+--- Resets both CMake configure and build presets to empty strings
 function M.reset_cmake_presets()
   configure_preset = ""
   build_preset = ""
 end
 
+--- @param job_id number The job ID of the currently running CMake build
 function M.set_cmake_build_job_id(job_id)
   cmake_build_job_id = job_id
 end
 
+--- @return number|nil The job ID of the currently running CMake build, or nil
+--- if no build is running
 function M.get_cmake_build_job_id()
   return cmake_build_job_id
 end
 
+--- @return number The current index used for tracking entries in pickers
 function M.get_current_index()
   return current_index
 end
 
+--- @param index number The index to set for tracking entries in pickers
 function M.set_current_index(index)
   current_index = index
 end
 
+--- @return number The last selected index in the picker, used for default
 function M.get_last_selected_index()
   return last_selected_index
 end
 
+--- @param index number The index to set as the last selected index in the
+--- picker
 function M.set_last_selected_index(index)
   last_selected_index = index
 end

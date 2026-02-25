@@ -1,6 +1,8 @@
 local getPresetFromEntry = require("helpers").getPresetFromEntry
 local getDescFromEntry = require("helpers").getDescFromEntry
 
+--- Executes a command and uses its output to populate a picker.
+---@param picker_opts any
 local function pick_cmd_result(picker_opts)
   local function finder(opts, ctx)
     return require("snacks.picker.source.proc").proc({
@@ -30,6 +32,7 @@ local Snacks = require("snacks")
 -- Custom Pickers
 Custom_pickers = {}
 
+--- CMake Build Presets with Target
 function Custom_pickers.cmake_build_preset_with_target()
   local preset = ""
   pick_cmd_result({

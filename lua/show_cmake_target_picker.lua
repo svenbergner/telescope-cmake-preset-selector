@@ -19,6 +19,7 @@ local log = require('plenary.log'):new()
 local M = {}
 
 -- Helper function to show target picker and start build
+--- @param selectedPreset string: The selected CMake build preset
 function M.show_cmake_target_picker(selectedPreset)
    local opts = {
       results_title = 'CMake Custom Targets',

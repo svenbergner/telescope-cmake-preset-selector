@@ -19,6 +19,7 @@ local log = require('plenary.log'):new()
 
 local M = {}
 
+--- Helper function to show CMake configure presets and start configuration
 function M.show_cmake_configure_presets()
    local opts = {
       results_title = 'CMake Configure Presets',
