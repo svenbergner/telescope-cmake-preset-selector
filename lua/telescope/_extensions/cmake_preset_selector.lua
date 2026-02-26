@@ -70,6 +70,29 @@ local function show_messages_in_floating_window(messages, title)
          silent = true,
       })
    end
+
+   -- Auto-close this floating window when a snacks picker input becomes active
+   local augroup = vim.api.nvim_create_augroup('cmake_floating_win_' .. win, { clear = true })
+   vim.api.nvim_create_autocmd('FileType', {
+      pattern = 'snacks_picker_input',
+      group = augroup,
+      once = true,
+      callback = function()
+         if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+         end
+      end,
+   })
+
+   -- Clean up the augroup when the floating window is closed normally
+   vim.api.nvim_create_autocmd('WinClosed', {
+      pattern = tostring(win),
+      group = augroup,
+      once = true,
+      callback = function()
+         vim.api.nvim_del_augroup_by_id(augroup)
+      end,
+   })
 end
 
 local function show_last_build_messages()
