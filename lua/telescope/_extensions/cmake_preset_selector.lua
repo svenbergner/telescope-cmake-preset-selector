@@ -6,20 +6,24 @@ local set_cmake_build_job_id = require('helpers').set_cmake_build_job_id
 local get_last_build_messages = require('helpers').get_last_build_messages
 local get_last_build_message = require('helpers').get_last_build_message
 
-local pickers = require('telescope.pickers')
 local finders = require('telescope.finders')
+local pickers = require('telescope.pickers')
 local conf = require('telescope.config').values
-local actions = require('telescope.actions')
 local action_state = require('telescope.actions.state')
+local actions = require('telescope.actions')
 
-local function stop_current_cmake_build()
+local function stop_current_cmake_build(quiet)
    local cmake_build_job_id = get_cmake_build_job_id()
    if cmake_build_job_id ~= nil then
       vim.fn.jobstop(cmake_build_job_id)
       set_cmake_build_job_id(nil)
-      update_notification('CMake build process stopped', 'CMake Build')
+      if not quiet then
+         update_notification('CMake build process stopped', 'CMake Build')
+      end
    else
-      update_notification('No active CMake build process to stop', 'CMake Build', 'warn')
+      if not quiet then
+         update_notification('No active CMake build process to stop', 'CMake Build', 'warn')
+      end
    end
 end
 
