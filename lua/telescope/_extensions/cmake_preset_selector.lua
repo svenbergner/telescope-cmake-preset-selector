@@ -107,62 +107,63 @@ local function show_last_build_messages()
    local entries = {}
    for i = #all_messages, 1, -1 do
       local entry = all_messages[i]
-      local display_text = string.format('[%s] %s - %d lines',
-         entry.timestamp,
-         entry.preset,
-         #entry.messages)
+      local display_text = string.format('[%s] %s - %d lines', entry.timestamp, entry.preset, #entry.messages)
       table.insert(entries, {
          index = i,
          display = display_text,
          preset = entry.preset,
          timestamp = entry.timestamp,
-         messages = entry.messages
+         messages = entry.messages,
       })
    end
 
    -- Show telescope picker to select which build messages to view
-   pickers.new({}, {
-      prompt_title = 'Select Build Messages to View',
-      finder = finders.new_table({
-         results = entries,
-         entry_maker = function(entry)
-            return {
-               value = entry,
-               display = entry.display,
-               ordinal = entry.display,
-            }
+   pickers
+      .new({}, {
+         prompt_title = 'Select Build Messages to View',
+         finder = finders.new_table({
+            results = entries,
+            entry_maker = function(entry)
+               return {
+                  value = entry,
+                  display = entry.display,
+                  ordinal = entry.display,
+               }
+            end,
+         }),
+         sorter = conf.generic_sorter({}),
+         previewer = require('telescope.previewers').new_buffer_previewer({
+            title = 'Build Messages Preview',
+            define_preview = function(self, entry)
+               -- Set preview buffer content to the messages
+               vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, entry.value.messages)
+               -- Set syntax highlighting for cmake_build_messages
+               vim.bo[self.state.bufnr].filetype = 'cmake_build_messages'
+            end,
+         }),
+         layout_config = {
+            height = 0.8,
+            width = 0.8,
+            preview_width = 0.7,
+         },
+         attach_mappings = function(prompt_bufnr)
+            actions.select_default:replace(function()
+               actions.close(prompt_bufnr)
+               local selection = action_state.get_selected_entry()
+               if selection then
+                  -- Show messages in floating window
+                  local title = string.format(
+                     ' CMake Build Messages - [%s] %s ',
+                     selection.value.timestamp,
+                     selection.value.preset
+                  )
+                  show_messages_in_floating_window(selection.value.messages, title)
+               end
+            end)
+            return true
          end,
-      }),
-      sorter = conf.generic_sorter({}),
-      previewer = require('telescope.previewers').new_buffer_previewer({
-         title = 'Build Messages Preview',
-         define_preview = function(self, entry)
-            -- Set preview buffer content to the messages
-            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, entry.value.messages)
-            -- Set syntax highlighting for cmake_build_messages
-            vim.bo[self.state.bufnr].filetype = 'cmake_build_messages'
-         end,
-      }),
-      layout_config = {
-         height = 0.8,
-         width = 0.8,
-         preview_width = 0.7,
-      },
-      attach_mappings = function(prompt_bufnr)
-         actions.select_default:replace(function()
-            actions.close(prompt_bufnr)
-            local selection = action_state.get_selected_entry()
-            if selection then
-               -- Show messages in floating window
-               local title = string.format(' CMake Build Messages - [%s] %s ',
-                  selection.value.timestamp,
-                  selection.value.preset)
-               show_messages_in_floating_window(selection.value.messages, title)
-            end
-         end)
-         return true
-      end,
-   }):find()
+      })
+      :find()
 end
 
 local function show_last_build_message()
@@ -174,9 +175,7 @@ local function show_last_build_message()
    end
 
    -- Show the last build messages in floating window
-   local title = string.format(' CMake Build Messages - [%s] %s ',
-      last_message.timestamp,
-      last_message.preset)
+   local title = string.format(' CMake Build Messages - [%s] %s ', last_message.timestamp, last_message.preset)
    show_messages_in_floating_window(last_message.messages, title)
 end
 
