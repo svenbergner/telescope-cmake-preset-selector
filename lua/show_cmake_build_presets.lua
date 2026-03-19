@@ -79,7 +79,7 @@ function M.show_cmake_build_presets()
                })
 
                local starttime = vim.fn.reltime()
-               local cmd = 'cmake --build --progress --preset=' .. selectedPreset
+               local cmd = 'cmake --build --preset=' .. selectedPreset
                local build_error = false
                local build_messages = {}
                local cmake_build_job_id = vim.fn.jobstart(cmd, {
