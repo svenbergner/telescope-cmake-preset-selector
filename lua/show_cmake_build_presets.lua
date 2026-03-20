@@ -16,6 +16,8 @@ local set_current_index = require('helpers').set_current_index
 local get_last_selected_index = require('helpers').get_last_selected_index
 local set_last_selected_index = require('helpers').set_last_selected_index
 local set_last_build_messages = require('helpers').set_last_build_messages
+local set_build_preset = require('helpers').set_build_preset
+local set_last_build_state = require('helpers').set_last_build_state
 
 local log = require('plenary.log'):new()
 -- log.level = 'debug'
@@ -62,6 +64,7 @@ function M.show_cmake_build_presets()
          attach_mappings = function(prompt_bufnr)
             actions.select_default:replace(function()
                local selectedPreset = actions_state.get_selected_entry().value
+               set_build_preset(selectedPreset)
                set_last_selected_index(actions_state.get_selected_entry().index - 2)
                log.debug('attach_mappings', selectedPreset)
                BuildPreset = selectedPreset
@@ -118,15 +121,14 @@ function M.show_cmake_build_presets()
                   on_exit = function(_, code)
                      local endtime = vim.fn.reltime()
                      local duration = vim.fn.reltime(starttime, endtime)
-                     local duration_message = 'Build finished in '
-                        .. format_time(duration)
-                        .. ' with return code '
-                        .. code
+                     local duration_message = 'Build finished in ' .. format_time(duration) .. ' with return code ' .. code
                      handle.message = duration_message
                      vim.fn.setqflist({}, 'a', { lines = { duration_message } })
                      if code == 0 then
+                        set_last_build_state('successful')
                         handle:finish()
                      else
+                        set_last_build_state('failed')
                         handle:cancel()
 
                         if #vim.fn.getqflist() > 0 then

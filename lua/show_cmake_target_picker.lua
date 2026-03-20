@@ -12,6 +12,7 @@ local set_cmake_build_job_id = require('helpers').set_cmake_build_job_id
 local get_current_index = require('helpers').get_current_index
 local set_current_index = require('helpers').set_current_index
 local set_last_build_messages = require('helpers').set_last_build_messages
+local set_last_build_state = require('helpers').set_last_build_state
 
 local log = require('plenary.log'):new()
 -- log.level = 'debug'
@@ -126,8 +127,10 @@ function M.show_cmake_target_picker(selectedPreset)
                      handle.message = duration_message
                      vim.fn.setqflist({}, 'a', { lines = { duration_message } })
                      if code == 0 then
+                        set_last_build_state('successful')
                         handle:finish()
                      else
+                        set_last_build_state('failed')
                         handle:cancel()
 
                         if #vim.fn.getqflist() > 0 then

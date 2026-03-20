@@ -13,6 +13,8 @@ local set_current_index = require('helpers').set_current_index
 local get_last_selected_index = require('helpers').get_last_selected_index
 local set_last_selected_index = require('helpers').set_last_selected_index
 local set_last_build_messages = require('helpers').set_last_build_messages
+local set_configure_preset = require('helpers').set_configure_preset
+local set_last_build_state = require('helpers').set_last_build_state
 
 local log = require('plenary.log'):new()
 -- log.level = 'debug'
@@ -60,6 +62,7 @@ function M.show_cmake_configure_presets()
             actions.select_default:replace(function()
                local messages = {}
                local selectedPreset = actions_state.get_selected_entry().value
+               set_configure_preset(selectedPreset)
                set_last_selected_index(actions_state.get_selected_entry().index - 2)
                log.debug('attach_mappings', selectedPreset)
                ConfigurePreset = selectedPreset
@@ -105,11 +108,13 @@ function M.show_cmake_configure_presets()
                   end,
                   on_exit = function(_, code)
                      if code == 0 then
+                        set_last_build_state('successful')
                         local success_messages = 'CMake configure successfully completed: ' .. selectedPreset
                         require('noice').notify(success_messages, 'info')
                         table.insert(messages, success_messages)
                         vim.cmd('cclose')
                      else
+                        set_last_build_state('failed')
                         local failure_messages = 'CMake configure failed: ' .. selectedPreset
                         require('noice').notify(failure_messages, 'error')
                         table.insert(messages, failure_messages)

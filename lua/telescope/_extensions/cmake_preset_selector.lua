@@ -5,6 +5,7 @@ local get_cmake_build_job_id = require('helpers').get_cmake_build_job_id
 local set_cmake_build_job_id = require('helpers').set_cmake_build_job_id
 local get_last_build_messages = require('helpers').get_last_build_messages
 local get_last_build_message = require('helpers').get_last_build_message
+local get_build_state = require('helpers').get_build_state
 
 local finders = require('telescope.finders')
 local pickers = require('telescope.pickers')
@@ -193,6 +194,7 @@ return require('telescope').register_extension({
       stop_current_cmake_build = stop_current_cmake_build,
       get_build_preset = get_build_preset,
       get_configure_preset = get_configure_preset,
+      get_build_state = get_build_state,
    },
 })
 
