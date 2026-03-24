@@ -14,188 +14,233 @@ local action_state = require('telescope.actions.state')
 local actions = require('telescope.actions')
 
 local function stop_current_cmake_build(quiet)
-   local cmake_build_job_id = get_cmake_build_job_id()
-   if cmake_build_job_id ~= nil then
-      vim.fn.jobstop(cmake_build_job_id)
-      set_cmake_build_job_id(nil)
-      if not quiet then
-         update_notification('CMake build process stopped', 'CMake Build')
-      end
-   else
-      if not quiet then
-         update_notification('No active CMake build process to stop', 'CMake Build', 'warn')
-      end
-   end
+  local cmake_build_job_id = get_cmake_build_job_id()
+  if cmake_build_job_id ~= nil then
+    vim.fn.jobstop(cmake_build_job_id)
+    set_cmake_build_job_id(nil)
+    if not quiet then
+      update_notification('CMake build process stopped', 'CMake Build')
+    end
+  else
+    if not quiet then
+      update_notification('No active CMake build process to stop', 'CMake Build', 'warn')
+    end
+  end
 end
 
 -- Helper function to display messages in a floating window
 local function show_messages_in_floating_window(messages, title)
-   -- Create a new buffer
-   local buf = vim.api.nvim_create_buf(false, true)
+  -- Create a new buffer
+  local buf = vim.api.nvim_create_buf(false, true)
 
-   -- Set buffer options
-   vim.bo[buf].bufhidden = 'wipe'
-   vim.bo[buf].filetype = 'cmake_build_messages'
+  -- Set buffer options
+  vim.bo[buf].bufhidden = 'wipe'
+  vim.bo[buf].filetype = 'cmake_build_messages'
 
-   -- Set buffer content
-   vim.api.nvim_buf_set_lines(buf, 0, -1, false, messages)
-   vim.bo[buf].modifiable = false
+  -- Set buffer content
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, messages)
+  vim.bo[buf].modifiable = false
 
-   -- Calculate window size
-   local width = math.floor(vim.o.columns * 0.8)
-   local height = math.floor(vim.o.lines * 0.8)
-   local row = math.floor((vim.o.lines - height) / 2)
-   local col = math.floor((vim.o.columns - width) / 2)
+  -- Calculate window size
+  local width = math.floor(vim.o.columns * 0.8)
+  local height = math.floor(vim.o.lines * 0.8)
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
 
-   -- Create floating window
-   local win_opts = {
-      relative = 'editor',
-      width = width,
-      height = height,
-      row = row,
-      col = col,
-      style = 'minimal',
-      border = 'rounded',
-      title = title,
-      title_pos = 'center',
-   }
+  -- Create floating window
+  local win_opts = {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = title,
+    title_pos = 'center',
+    footer = ' q / <Esc>: Close  │  <C-q>: Errors → Quickfix  │  <C-S-q>: All → Quickfix ',
+    footer_pos = 'center',
+  }
 
-   local win = vim.api.nvim_open_win(buf, true, win_opts)
+  local win = vim.api.nvim_open_win(buf, true, win_opts)
 
-   -- Set window options
-   vim.api.nvim_set_option_value('wrap', false, { win = win })
-   vim.api.nvim_set_option_value('cursorline', true, { win = win })
+  -- Set window options
+  vim.api.nvim_set_option_value('wrap', false, { win = win })
+  vim.api.nvim_set_option_value('cursorline', true, { win = win })
 
-   -- Set keymaps to close the window with 'q' or '<Esc>'
-   local keymaps = { 'q', '<Esc>' }
-   for _, key in ipairs(keymaps) do
-      vim.api.nvim_buf_set_keymap(buf, 'n', key, ':close<CR>', {
-         nowait = true,
-         noremap = true,
-         silent = true,
-      })
-   end
+  -- Set keymaps to close the window with 'q' or '<Esc>'
+  local keymaps = { 'q', '<Esc>' }
+  for _, key in ipairs(keymaps) do
+    vim.api.nvim_buf_set_keymap(buf, 'n', key, ':close<CR>', {
+      nowait = true,
+      noremap = true,
+      silent = true,
+    })
+  end
 
-   -- Auto-close this floating window when a snacks picker input becomes active
-   local augroup = vim.api.nvim_create_augroup('cmake_floating_win_' .. win, { clear = true })
-   vim.api.nvim_create_autocmd('FileType', {
-      pattern = 'snacks_picker_input',
-      group = augroup,
-      once = true,
-      callback = function()
-         if vim.api.nvim_win_is_valid(win) then
-            vim.api.nvim_win_close(win, true)
-         end
-      end,
-   })
+  -- Send only error lines to quickfix list, close window and jump to last entry
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<C-q>', '', {
+    nowait = true,
+    noremap = true,
+    silent = true,
+    callback = function()
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      local qf_items = {}
+      for _, line in ipairs(lines) do
+        if line:match('[Ee]rror:') or line:match('FAILED') or line:match('fatal error') then
+          table.insert(qf_items, { text = line })
+        end
+      end
+      if #qf_items == 0 then
+        update_notification('No errors found in build output', 'CMake Build', 'warn')
+        return
+      end
+      vim.fn.setqflist({}, 'a', { lines = { qf_items } })
+      vim.api.nvim_win_close(win, true)
+      vim.cmd('copen')
+      vim.cmd('cfirst')
+    end,
+  })
 
-   -- Clean up the augroup when the floating window is closed normally
-   vim.api.nvim_create_autocmd('WinClosed', {
-      pattern = tostring(win),
-      group = augroup,
-      once = true,
-      callback = function()
-         vim.api.nvim_del_augroup_by_id(augroup)
-      end,
-   })
+  -- Send all lines to quickfix list, close window and jump to last entry
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<C-S-q>', '', {
+    nowait = true,
+    noremap = true,
+    silent = true,
+    callback = function()
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      local qf_items = {}
+      for _, line in ipairs(lines) do
+        table.insert(qf_items, { text = line })
+      end
+      vim.fn.setqflist({}, 'a', { lines = { qf_items } })
+      vim.api.nvim_win_close(win, true)
+      vim.cmd('copen')
+      vim.cmd('cfirst')
+    end,
+  })
+
+  -- Auto-close this floating window when a snacks picker input becomes active
+  local augroup = vim.api.nvim_create_augroup('cmake_floating_win_' .. win, { clear = true })
+  vim.api.nvim_create_autocmd('FileType', {
+    pattern = 'snacks_picker_input',
+    group = augroup,
+    once = true,
+    callback = function()
+      if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_close(win, true)
+      end
+    end,
+  })
+
+  -- Clean up the augroup when the floating window is closed normally
+  vim.api.nvim_create_autocmd('WinClosed', {
+    pattern = tostring(win),
+    group = augroup,
+    once = true,
+    callback = function()
+      vim.api.nvim_del_augroup_by_id(augroup)
+    end,
+  })
 end
 
 local function show_last_build_messages()
-   local all_messages = get_last_build_messages()
+  local all_messages = get_last_build_messages()
 
-   if #all_messages == 0 then
-      update_notification('No build messages available', 'CMake Build', 'warn')
-      return
-   end
+  if #all_messages == 0 then
+    update_notification('No build messages available', 'CMake Build', 'warn')
+    return
+  end
 
-   -- Create entries for telescope picker (reversed so newest is first)
-   local entries = {}
-   for i = #all_messages, 1, -1 do
-      local entry = all_messages[i]
-      local display_text = string.format('[%s] %s - %d lines', entry.timestamp, entry.preset, #entry.messages)
-      table.insert(entries, {
-         index = i,
-         display = display_text,
-         preset = entry.preset,
-         timestamp = entry.timestamp,
-         messages = entry.messages,
-      })
-   end
+  -- Create entries for telescope picker (reversed so newest is first)
+  local entries = {}
+  for i = #all_messages, 1, -1 do
+    local entry = all_messages[i]
+    local display_text = string.format('[%s] %s - %d lines', entry.timestamp, entry.preset, #entry.messages)
+    table.insert(entries, {
+      index = i,
+      display = display_text,
+      preset = entry.preset,
+      timestamp = entry.timestamp,
+      messages = entry.messages,
+    })
+  end
 
-   -- Show telescope picker to select which build messages to view
-   pickers
+  -- Show telescope picker to select which build messages to view
+  pickers
       .new({}, {
-         prompt_title = 'Select Build Messages to View',
-         finder = finders.new_table({
-            results = entries,
-            entry_maker = function(entry)
-               return {
-                  value = entry,
-                  display = entry.display,
-                  ordinal = entry.display,
-               }
-            end,
-         }),
-         sorter = conf.generic_sorter({}),
-         previewer = require('telescope.previewers').new_buffer_previewer({
-            title = 'Build Messages Preview',
-            define_preview = function(self, entry)
-               -- Set preview buffer content to the messages
-               vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, entry.value.messages)
-               -- Set syntax highlighting for cmake_build_messages
-               vim.bo[self.state.bufnr].filetype = 'cmake_build_messages'
-            end,
-         }),
-         layout_config = {
-            height = 0.8,
-            width = 0.8,
-            preview_width = 0.7,
-         },
-         attach_mappings = function(prompt_bufnr)
-            actions.select_default:replace(function()
-               actions.close(prompt_bufnr)
-               local selection = action_state.get_selected_entry()
-               if selection then
-                  -- Show messages in floating window
-                  local title = string.format(
-                     ' CMake Build Messages - [%s] %s ',
-                     selection.value.timestamp,
-                     selection.value.preset
-                  )
-                  show_messages_in_floating_window(selection.value.messages, title)
-               end
-            end)
-            return true
-         end,
+        prompt_title = 'Select Build Messages to View',
+        finder = finders.new_table({
+          results = entries,
+          entry_maker = function(entry)
+            return {
+              value = entry,
+              display = entry.display,
+              ordinal = entry.display,
+            }
+          end,
+        }),
+        sorter = conf.generic_sorter({}),
+        previewer = require('telescope.previewers').new_buffer_previewer({
+          title = 'Build Messages Preview',
+          define_preview = function(self, entry)
+            -- Set preview buffer content to the messages
+            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, entry.value.messages)
+            -- Set syntax highlighting for cmake_build_messages
+            vim.bo[self.state.bufnr].filetype = 'cmake_build_messages'
+          end,
+        }),
+        layout_config = {
+          height = 0.8,
+          width = 0.8,
+          preview_width = 0.7,
+        },
+        attach_mappings = function(prompt_bufnr)
+          actions.select_default:replace(function()
+            actions.close(prompt_bufnr)
+            local selection = action_state.get_selected_entry()
+            if selection then
+              -- Show messages in floating window
+              local title = string.format(
+                ' CMake Build Messages - [%s] %s ',
+                selection.value.timestamp,
+                selection.value.preset
+              )
+              show_messages_in_floating_window(selection.value.messages, title)
+            end
+          end)
+          return true
+        end,
       })
       :find()
 end
 
 local function show_last_build_message()
-   local last_message = get_last_build_message()
+  local last_message = get_last_build_message()
 
-   if last_message == nil then
-      update_notification('No build messages available', 'CMake Build', 'warn')
-      return
-   end
+  if last_message == nil then
+    update_notification('No build messages available', 'CMake Build', 'warn')
+    return
+  end
 
-   -- Show the last build messages in floating window
-   local title = string.format(' CMake Build Messages - [%s] %s ', last_message.timestamp, last_message.preset)
-   show_messages_in_floating_window(last_message.messages, title)
+  -- Show the last build messages in floating window
+  local title = string.format(' CMake Build Messages - [%s] %s ', last_message.timestamp, last_message.preset)
+  show_messages_in_floating_window(last_message.messages, title)
 end
 
 return require('telescope').register_extension({
-   exports = {
-      show_cmake_configure_presets = require('show_cmake_configure_presets').show_cmake_configure_presets,
-      show_cmake_build_presets = require('show_cmake_build_presets').show_cmake_build_presets,
-      show_cmake_build_presets_with_target = require('show_cmake_build_presets_with_target').show_cmake_build_presets_with_target,
-      show_last_build_messages = show_last_build_messages,
-      show_last_build_message = show_last_build_message,
-      stop_current_cmake_build = stop_current_cmake_build,
-      get_build_preset = get_build_preset,
-      get_configure_preset = get_configure_preset,
-      get_build_state = get_build_state,
-   },
+  exports = {
+    show_cmake_configure_presets = require('show_cmake_configure_presets').show_cmake_configure_presets,
+    show_cmake_build_presets = require('show_cmake_build_presets').show_cmake_build_presets,
+    show_cmake_build_presets_with_target = require('show_cmake_build_presets_with_target')
+    .show_cmake_build_presets_with_target,
+    show_last_build_messages = show_last_build_messages,
+    show_last_build_message = show_last_build_message,
+    stop_current_cmake_build = stop_current_cmake_build,
+    get_build_preset = get_build_preset,
+    get_configure_preset = get_configure_preset,
+    get_build_state = get_build_state,
+  },
 })
 
 -- Commandline to list cmake build presets
