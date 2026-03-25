@@ -22,6 +22,44 @@ local set_last_build_state = require('helpers').set_last_build_state
 local log = require('plenary.log'):new()
 -- log.level = 'debug'
 
+-- Ensure the 'CMake' fidget group uses the @text.note.comment highlight for the 'Build' annotation
+do
+   local ok, display = pcall(require, 'fidget.progress.display')
+   if ok then
+      display.options.overrides['CMake'] = vim.tbl_extend(
+         'force',
+         display.options.overrides['CMake'] or {},
+         { info_style = '@text.note.comment' }
+      )
+   end
+   local ok2, notification = pcall(require, 'fidget.notification')
+   if ok2 and notification.options.configs['CMake'] then
+      notification.options.configs['CMake'] = vim.tbl_extend(
+         'force',
+         notification.options.configs['CMake'],
+         { info_style = '@text.note.comment' }
+      )
+   end
+end
+
+--- Renders an ASCII progress bar without percentage text (fidget adds it automatically), e.g. "████████░░░░"
+local function make_progress_bar(pct, width)
+   width = width or 20
+   local filled = math.floor(pct / 100 * width)
+   local empty = width - filled
+   return string.rep('█', filled) .. string.rep('░', empty)
+end
+
+--- Truncates a string to the first line and at most max_len characters
+local function truncate_message(msg, max_len)
+   max_len = max_len or 120
+   local first_line = msg:match('([^\n]+)') or msg
+   if #first_line > max_len then
+      return first_line:sub(1, max_len) .. '…'
+   end
+   return first_line
+end
+
 local M = {}
 
 --- Helper function to show CMake build presets and start build
@@ -76,9 +114,9 @@ function M.show_cmake_build_presets()
 
                -- Start a new task with fidget
                local handle = progress.handle.create({
-                  title = '',
-                  message = 'Build started for preset: ' .. selectedPreset,
-                  lsp_client = { name = 'CMake Build: ' .. selectedPreset },
+                  title = 'Build',
+                  message = selectedPreset,
+                  lsp_client = { name = 'CMake' },
                })
 
                local starttime = vim.fn.reltime()
@@ -90,55 +128,74 @@ function M.show_cmake_build_presets()
                   stderr_buffered = true,
                   on_stdout = function(_, data)
                      if data then
-                        local progress_message = table.concat(data, '\n')
-                        handle.message = progress_message
-                        for _, line in ipairs(data) do
-                           if #line > 1 then
-                              if line:find('error:', 1, true) and build_error == false then
-                                 update_notification(line, 'CMake Build Progress', 'error', 10000)
-                                 vim.fn.setqflist({}, 'r', { title = 'CMake Build Errors: ' .. selectedPreset })
-                                 build_error = true
+                        vim.schedule(function()
+                           for _, line in ipairs(data) do
+                              if #line > 1 then
+                                 -- Parse cmake/ninja progress: "[N/M]" fraction or "[ X%]" percentage
+                                 local n, m = line:match('%[%s*(%d+)/(%d+)%]')
+                                 if n and m and tonumber(m) > 0 then
+                                    local pct = math.floor(tonumber(n) / tonumber(m) * 100)
+                                    local action = line:match('%[%s*%d+/%d+%]%s*(.*)')
+                                    handle.message = make_progress_bar(pct) .. string.format(' (%d%%)', pct) .. '\n' .. truncate_message(action or '')
+                                 else
+                                    local pct = line:match('%[%s*(%d+)%%%]')
+                                    if pct then
+                                       local action = line:match('%[%s*%d+%%%]%s*(.*)')
+                                       handle.message = make_progress_bar(tonumber(pct)) .. string.format(' (%d%%)', tonumber(pct)) .. '\n' .. truncate_message(action or '')
+                                    else
+                                       handle.message = truncate_message(line)
+                                    end
+                                 end
+                                 if line:find('error:', 1, true) and build_error == false then
+                                    update_notification(line, 'CMake Build Progress', 'error', 10000)
+                                    vim.fn.setqflist({}, 'r', { title = 'CMake Build Errors: ' .. selectedPreset })
+                                    build_error = true
+                                 end
+                                 if build_error then
+                                    vim.fn.setqflist({}, 'a', { lines = { line } })
+                                 end
+                                 table.insert(build_messages, line)
                               end
-                              if build_error then
-                                 vim.fn.setqflist({}, 'a', { lines = { line } })
-                              end
-                              table.insert(build_messages, line)
                            end
-                        end
-                        scroll_quickfix_to_end_if_open()
+                           scroll_quickfix_to_end_if_open()
+                        end)
                      end
                   end,
                   on_stderr = function(_, data)
                      if data then
-                        for _, line in ipairs(data) do
-                           if #line > 1 then
-                              vim.fn.setqflist({}, 'a', { lines = { line } })
+                        vim.schedule(function()
+                           for _, line in ipairs(data) do
+                              if #line > 1 then
+                                 vim.fn.setqflist({}, 'a', { lines = { line } })
+                              end
                            end
-                        end
-                        scroll_quickfix_to_end_if_open()
+                           scroll_quickfix_to_end_if_open()
+                        end)
                      end
                   end,
                   on_exit = function(_, code)
-                     local endtime = vim.fn.reltime()
-                     local duration = vim.fn.reltime(starttime, endtime)
-                     local duration_message = 'Build finished in ' .. format_time(duration) .. ' with return code ' .. code
-                     handle.message = duration_message
-                     vim.fn.setqflist({}, 'a', { lines = { duration_message } })
-                     if code == 0 then
-                        set_last_build_state('successful')
-                        handle:finish()
-                     else
-                        set_last_build_state('failed')
-                        handle:cancel()
+                     vim.schedule(function()
+                        local endtime = vim.fn.reltime()
+                        local duration = vim.fn.reltime(starttime, endtime)
+                        local duration_message = 'Build finished in ' .. format_time(duration) .. ' with return code ' .. code
+                        handle.message = duration_message
+                        vim.fn.setqflist({}, 'a', { lines = { duration_message } })
+                        if code == 0 then
+                           set_last_build_state('successful')
+                           handle:finish()
+                        else
+                           set_last_build_state('failed')
+                           handle:cancel()
 
-                        if #vim.fn.getqflist() > 0 then
-                           local qflist_title = 'CMake build ' .. selectedPreset
-                           vim.fn.setqflist({}, 'r', { title = qflist_title })
-                           vim.cmd('copen')
+                           if #vim.fn.getqflist() > 0 then
+                              local qflist_title = 'CMake build ' .. selectedPreset
+                              vim.fn.setqflist({}, 'r', { title = qflist_title })
+                              vim.cmd('copen')
+                           end
                         end
-                     end
-                     set_cmake_build_job_id(nil)
-                     set_last_build_messages(selectedPreset, build_messages)
+                        set_cmake_build_job_id(nil)
+                        set_last_build_messages(selectedPreset, build_messages)
+                     end)
                   end,
                })
                set_cmake_build_job_id(cmake_build_job_id)
