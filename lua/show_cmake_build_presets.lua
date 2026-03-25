@@ -18,6 +18,8 @@ local set_last_selected_index = require('helpers').set_last_selected_index
 local set_last_build_messages = require('helpers').set_last_build_messages
 local set_build_preset = require('helpers').set_build_preset
 local set_last_build_state = require('helpers').set_last_build_state
+local get_build_cancelled = require('helpers').get_build_cancelled
+local set_build_cancelled = require('helpers').set_build_cancelled
 
 local log = require('plenary.log'):new()
 -- log.level = 'debug'
@@ -111,6 +113,7 @@ function M.show_cmake_build_presets()
                local api = vim.api
                api.nvim_cmd({ cmd = 'wa' }, {}) -- save all buffers
                vim.fn.setqflist({})
+               set_build_cancelled(false)
 
                -- Start a new task with fidget
                local handle = progress.handle.create({
@@ -180,7 +183,18 @@ function M.show_cmake_build_presets()
                         local duration_message = 'Build finished in ' .. format_time(duration) .. ' with return code ' .. code
                         handle.message = duration_message
                         vim.fn.setqflist({}, 'a', { lines = { duration_message } })
-                        if code == 0 then
+                        if get_build_cancelled() then
+                           -- Build was stopped by the user — do not open qflist
+                           set_build_cancelled(false)
+                           set_last_build_state('cancelled')
+                           handle:cancel()
+                           update_notification(
+                              'Build "' .. selectedPreset .. '" was cancelled by the user.',
+                              'CMake Build',
+                              'warn',
+                              5000
+                           )
+                        elseif code == 0 then
                            set_last_build_state('successful')
                            handle:finish()
                         else

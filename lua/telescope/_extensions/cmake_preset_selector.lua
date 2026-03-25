@@ -3,6 +3,7 @@ local get_build_preset = require('helpers').get_build_preset
 local get_configure_preset = require('helpers').get_configure_preset
 local get_cmake_build_job_id = require('helpers').get_cmake_build_job_id
 local set_cmake_build_job_id = require('helpers').set_cmake_build_job_id
+local set_build_cancelled = require('helpers').set_build_cancelled
 local get_last_build_messages = require('helpers').get_last_build_messages
 local get_last_build_message = require('helpers').get_last_build_message
 local get_build_state = require('helpers').get_build_state
@@ -16,6 +17,7 @@ local actions = require('telescope.actions')
 local function stop_current_cmake_build(quiet)
   local cmake_build_job_id = get_cmake_build_job_id()
   if cmake_build_job_id ~= nil then
+    set_build_cancelled(true)
     vim.fn.jobstop(cmake_build_job_id)
     set_cmake_build_job_id(nil)
     if not quiet then

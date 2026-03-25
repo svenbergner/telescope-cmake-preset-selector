@@ -5,6 +5,7 @@ local current_index = 0
 local last_selected_index = 1
 local last_build_messages = {} -- Array of {preset, timestamp, messages}
 local last_build_state = ''
+local build_cancelled_by_user = false
 local hourglass_frames = { '', '', '' }
 local hourglass_index = 1
 
@@ -16,14 +17,26 @@ function M.get_last_build_state()
   return last_build_state
 end
 
--- Sets the last build state to either 'successful' or 'failed'
----@param state string The build state to set ('successful' or 'failed')
+-- Sets the last build state to 'successful', 'failed', or 'cancelled'
+---@param state string The build state to set ('successful', 'failed', or 'cancelled')
 function M.set_last_build_state(state)
-  if state == 'successful' or state == 'failed' then
+  if state == 'successful' or state == 'failed' or state == 'cancelled' then
     last_build_state = state
   else
-    error("Invalid build state: " .. tostring(state) .. ". Must be 'successful' or 'failed'.")
+    error("Invalid build state: " .. tostring(state) .. ". Must be 'successful', 'failed', or 'cancelled'.")
   end
+end
+
+-- Returns whether the current build was cancelled by the user
+---@return boolean
+function M.get_build_cancelled()
+  return build_cancelled_by_user
+end
+
+-- Sets whether the current build was cancelled by the user
+---@param cancelled boolean
+function M.set_build_cancelled(cancelled)
+  build_cancelled_by_user = cancelled
 end
 
 -- Returns all stored build messages
@@ -60,6 +73,8 @@ function M.get_build_state()
       icon = '✓'
     elseif state == 'failed' then
       icon = '✗'
+    elseif state == 'cancelled' then
+      icon = '⊘'
     else
       icon  = ' '
       state = 'idle'
