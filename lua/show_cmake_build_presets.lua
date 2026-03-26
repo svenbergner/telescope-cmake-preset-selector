@@ -28,33 +28,26 @@ local log = require('plenary.log'):new()
 do
    local ok, display = pcall(require, 'fidget.progress.display')
    if ok then
-      display.options.overrides['CMake'] = vim.tbl_extend(
-         'force',
-         display.options.overrides['CMake'] or {},
-         { info_style = '@text.note.comment' }
-      )
+      display.options.overrides['CMake'] =
+         vim.tbl_extend('force', display.options.overrides['CMake'] or {}, { info_style = '@text.note.comment' })
    end
    local ok2, notification = pcall(require, 'fidget.notification')
    if ok2 and notification.options.configs['CMake'] then
-      notification.options.configs['CMake'] = vim.tbl_extend(
-         'force',
-         notification.options.configs['CMake'],
-         { info_style = '@text.note.comment' }
-      )
+      notification.options.configs['CMake'] =
+         vim.tbl_extend('force', notification.options.configs['CMake'], { info_style = '@text.note.comment' })
    end
 end
 
---- Renders an ASCII progress bar without percentage text (fidget adds it automatically), e.g. "████████░░░░"
+--- Renders a plain block progress bar, e.g. "████████░░░░"
 local function make_progress_bar(pct, width)
    width = width or 20
    local filled = math.floor(pct / 100 * width)
-   local empty = width - filled
-   return string.rep('█', filled) .. string.rep('░', empty)
+   return string.rep('█', filled) .. string.rep('░', width - filled)
 end
 
 --- Truncates a string to the first line and at most max_len characters
 local function truncate_message(msg, max_len)
-   max_len = max_len or 120
+   max_len = max_len or math.floor(vim.o.columns * 0.3)
    local first_line = msg:match('([^\n]+)') or msg
    if #first_line > max_len then
       return first_line:sub(1, max_len) .. '…'
@@ -139,12 +132,18 @@ function M.show_cmake_build_presets()
                                  if n and m and tonumber(m) > 0 then
                                     local pct = math.floor(tonumber(n) / tonumber(m) * 100)
                                     local action = line:match('%[%s*%d+/%d+%]%s*(.*)')
-                                    handle.message = make_progress_bar(pct) .. string.format(' (%d%%)', pct) .. '\n' .. truncate_message(action or '')
+                                    handle.message = make_progress_bar(pct)
+                                       .. string.format(' [%s/%s]', n, m)
+                                       .. '\n'
+                                       .. truncate_message(action or '')
                                  else
                                     local pct = line:match('%[%s*(%d+)%%%]')
                                     if pct then
                                        local action = line:match('%[%s*%d+%%%]%s*(.*)')
-                                       handle.message = make_progress_bar(tonumber(pct)) .. string.format(' (%d%%)', tonumber(pct)) .. '\n' .. truncate_message(action or '')
+                                       handle.message = make_progress_bar(tonumber(pct))
+                                          .. string.format('%d%% ', tonumber(pct))
+                                          .. '\n'
+                                          .. truncate_message(action or '')
                                     else
                                        handle.message = truncate_message(line)
                                     end
@@ -180,7 +179,10 @@ function M.show_cmake_build_presets()
                      vim.schedule(function()
                         local endtime = vim.fn.reltime()
                         local duration = vim.fn.reltime(starttime, endtime)
-                        local duration_message = 'Build finished in ' .. format_time(duration) .. ' with return code ' .. code
+                        local duration_message = 'Build finished in '
+                           .. format_time(duration)
+                           .. ' with return code '
+                           .. code
                         handle.message = duration_message
                         vim.fn.setqflist({}, 'a', { lines = { duration_message } })
                         if get_build_cancelled() then
