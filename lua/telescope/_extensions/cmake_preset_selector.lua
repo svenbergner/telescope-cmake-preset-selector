@@ -33,6 +33,22 @@ end
 -- Forward declaration (show_last_build_messages is defined further below)
 local show_last_build_messages
 
+-- Parse a build output line into a quickfix item with location info if possible
+local function line_to_qf_item(line)
+  -- GCC/Clang format: /path/to/file.cpp:42:10: error: message
+  local filename, lnum, col, msg = line:match('^(.+):(%d+):(%d+):%s*(.+)$')
+  if filename then
+    return { filename = filename, lnum = tonumber(lnum), col = tonumber(col), text = msg }
+  end
+  -- Format without column: /path/to/file.cpp:42: message
+  filename, lnum, msg = line:match('^(.+):(%d+):%s*(.+)$')
+  if filename then
+    return { filename = filename, lnum = tonumber(lnum), text = msg }
+  end
+  -- Fallback: plain text only
+  return { text = line }
+end
+
 -- Helper function to display messages in a floating window
 local function show_messages_in_floating_window(messages, title)
   -- Create a new buffer
@@ -63,7 +79,7 @@ local function show_messages_in_floating_window(messages, title)
     border = 'rounded',
     title = title,
     title_pos = 'center',
-    footer = ' q / <Esc>: Close  │  a: All Messages  │  <C-q>: Errors → Quickfix  │  <C-S-q>: All → Quickfix ',
+    footer = ' q / <Esc>: Close  │  a: All Messages  │  <C-q>: Errors → Quickfix  │  <C-a>: All → Quickfix ',
     footer_pos = 'center',
   }
 
@@ -93,14 +109,14 @@ local function show_messages_in_floating_window(messages, title)
       local qf_items = {}
       for _, line in ipairs(lines) do
         if line:match('[Ee]rror:') or line:match('FAILED') or line:match('fatal error') then
-          table.insert(qf_items, { text = line })
+          table.insert(qf_items, line_to_qf_item(line))
         end
       end
       if #qf_items == 0 then
         update_notification('No errors found in build output', 'CMake Build', 'warn')
         return
       end
-      vim.fn.setqflist({}, 'a', { lines = { qf_items } })
+      vim.fn.setqflist({}, 'r', { items = qf_items })
       vim.api.nvim_win_close(win, true)
       vim.cmd('copen')
       vim.cmd('cfirst')
@@ -108,7 +124,7 @@ local function show_messages_in_floating_window(messages, title)
   })
 
   -- Send all lines to quickfix list, close window and jump to last entry
-  vim.api.nvim_buf_set_keymap(buf, 'n', '<C-S-q>', '', {
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<C-a>', '', {
     nowait = true,
     noremap = true,
     silent = true,
@@ -116,9 +132,9 @@ local function show_messages_in_floating_window(messages, title)
       local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
       local qf_items = {}
       for _, line in ipairs(lines) do
-        table.insert(qf_items, { text = line })
+        table.insert(qf_items, line_to_qf_item(line))
       end
-      vim.fn.setqflist({}, 'a', { lines = { qf_items } })
+      vim.fn.setqflist({}, 'r', { items = qf_items })
       vim.api.nvim_win_close(win, true)
       vim.cmd('copen')
       vim.cmd('cfirst')
