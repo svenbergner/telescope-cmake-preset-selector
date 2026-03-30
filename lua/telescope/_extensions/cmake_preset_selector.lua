@@ -30,6 +30,9 @@ local function stop_current_cmake_build(quiet)
   end
 end
 
+-- Forward declaration (show_last_build_messages is defined further below)
+local show_last_build_messages
+
 -- Helper function to display messages in a floating window
 local function show_messages_in_floating_window(messages, title)
   -- Create a new buffer
@@ -60,7 +63,7 @@ local function show_messages_in_floating_window(messages, title)
     border = 'rounded',
     title = title,
     title_pos = 'center',
-    footer = ' q / <Esc>: Close  │  <C-q>: Errors → Quickfix  │  <C-S-q>: All → Quickfix ',
+    footer = ' q / <Esc>: Close  │  a: All Messages  │  <C-q>: Errors → Quickfix  │  <C-S-q>: All → Quickfix ',
     footer_pos = 'center',
   }
 
@@ -122,6 +125,17 @@ local function show_messages_in_floating_window(messages, title)
     end,
   })
 
+  -- Open telescope picker with all available build messages
+  vim.api.nvim_buf_set_keymap(buf, 'n', 'a', '', {
+    nowait = true,
+    noremap = true,
+    silent = true,
+    callback = function()
+      vim.api.nvim_win_close(win, true)
+      show_last_build_messages()
+    end,
+  })
+
   -- Auto-close this floating window when a snacks picker input becomes active
   local augroup = vim.api.nvim_create_augroup('cmake_floating_win_' .. win, { clear = true })
   vim.api.nvim_create_autocmd('FileType', {
@@ -146,7 +160,7 @@ local function show_messages_in_floating_window(messages, title)
   })
 end
 
-local function show_last_build_messages()
+show_last_build_messages = function()
   local all_messages = get_last_build_messages()
 
   if #all_messages == 0 then
