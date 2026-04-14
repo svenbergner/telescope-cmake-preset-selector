@@ -20,10 +20,10 @@ end
 -- Sets the last build state to 'successful', 'failed', or 'cancelled'
 ---@param state string The build state to set ('successful', 'failed', or 'cancelled')
 function M.set_last_build_state(state)
-  if state == 'successful' or state == 'failed' or state == 'cancelled' then
+  if state == 'successful' or state == 'failed' or state == 'cancelled' or state == 'dirty' then
     last_build_state = state
   else
-    error("Invalid build state: " .. tostring(state) .. ". Must be 'successful', 'failed', or 'cancelled'.")
+    error("Invalid build state: " .. tostring(state) .. ". Must be 'successful', 'failed', 'cancelled', or 'dirty'.")
   end
 end
 
@@ -75,6 +75,8 @@ function M.get_build_state()
       icon = '✗'
     elseif state == 'cancelled' then
       icon = '⊘'
+    elseif state == 'dirty' then
+      icon = '●'
     else
       icon  = ' '
       state = 'idle'

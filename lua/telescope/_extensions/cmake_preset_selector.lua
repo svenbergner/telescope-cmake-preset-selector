@@ -7,6 +7,7 @@ local set_build_cancelled = require('helpers').set_build_cancelled
 local get_last_build_messages = require('helpers').get_last_build_messages
 local get_last_build_message = require('helpers').get_last_build_message
 local get_build_state = require('helpers').get_build_state
+local set_last_build_state = require('helpers').set_last_build_state
 
 local finders = require('telescope.finders')
 local pickers = require('telescope.pickers')
@@ -259,6 +260,16 @@ local function show_last_build_message()
   local title = string.format(' CMake Build Messages - [%s] %s ', last_message.timestamp, last_message.preset)
   show_messages_in_floating_window(last_message.messages, title)
 end
+
+-- Set build state to 'dirty' when any file is saved and no build is running
+vim.api.nvim_create_autocmd('BufWritePost', {
+  group = vim.api.nvim_create_augroup('cmake_dirty_on_save', { clear = true }),
+  callback = function()
+    if get_cmake_build_job_id() == nil then
+      set_last_build_state('dirty')
+    end
+  end,
+})
 
 return require('telescope').register_extension({
   exports = {
