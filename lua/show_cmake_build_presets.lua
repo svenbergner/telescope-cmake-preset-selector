@@ -119,6 +119,7 @@ function M.show_cmake_build_presets()
                local cmd = 'cmake --build --preset=' .. selectedPreset
                local build_error = false
                local build_messages = {}
+               local last_progress_line = ''
                local cmake_build_job_id = vim.fn.jobstart(cmd, {
                   stdout_buffered = false,
                   stderr_buffered = true,
@@ -132,20 +133,29 @@ function M.show_cmake_build_presets()
                                  if n and m and tonumber(m) > 0 then
                                     local pct = math.floor(tonumber(n) / tonumber(m) * 100)
                                     local action = line:match('%[%s*%d+/%d+%]%s*(.*)')
-                                    handle.message = make_progress_bar(pct)
+                                    last_progress_line = make_progress_bar(pct)
                                        .. string.format(' [%s/%s]', n, m)
+                                    handle.message = last_progress_line
                                        .. '\n'
                                        .. truncate_message(action or '')
                                  else
                                     local pct = line:match('%[%s*(%d+)%%%]')
                                     if pct then
                                        local action = line:match('%[%s*%d+%%%]%s*(.*)')
-                                       handle.message = make_progress_bar(tonumber(pct))
+                                       last_progress_line = make_progress_bar(tonumber(pct))
                                           .. string.format('%d%% ', tonumber(pct))
+                                       handle.message = last_progress_line
                                           .. '\n'
                                           .. truncate_message(action or '')
                                     else
-                                       handle.message = truncate_message(line)
+                                       -- No progress indicator: keep the last progress bar on line 1
+                                       if last_progress_line ~= '' then
+                                          handle.message = last_progress_line
+                                             .. '\n'
+                                             .. truncate_message(line)
+                                       else
+                                          handle.message = truncate_message(line)
+                                       end
                                     end
                                  end
                                  if line:find('error:', 1, true) and build_error == false then
