@@ -1,2 +1,2 @@
-# telescope-cmake-preset-selector
+# cmake-preset-selector
 Select a preset from a cmake project
