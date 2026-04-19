@@ -55,7 +55,7 @@ function M.show_cmake_build_presets()
           local entry = actions_state.get_selected_entry()
           local selectedPreset = entry.value
           helpers.set_build_preset(selectedPreset)
-          helpers.set_last_selected_index(entry.index - 2)
+          helpers.set_last_selected_index(entry.index + helpers.PICKER_INDEX_OFFSET)
           log.debug('Selected preset', selectedPreset)
           actions.close(prompt_bufnr)
 

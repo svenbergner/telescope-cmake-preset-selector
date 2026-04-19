@@ -12,6 +12,7 @@ local get_current_index = require('helpers').get_current_index
 local set_current_index = require('helpers').set_current_index
 local get_last_selected_index = require('helpers').get_last_selected_index
 local set_last_selected_index = require('helpers').set_last_selected_index
+local PICKER_INDEX_OFFSET = require('helpers').PICKER_INDEX_OFFSET
 local set_last_build_messages = require('helpers').set_last_build_messages
 local set_configure_preset = require('helpers').set_configure_preset
 local set_last_build_state = require('helpers').set_last_build_state
@@ -63,7 +64,7 @@ function M.show_cmake_configure_presets()
                local messages = {}
                local selectedPreset = actions_state.get_selected_entry().value
                set_configure_preset(selectedPreset)
-               set_last_selected_index(actions_state.get_selected_entry().index - 2)
+               set_last_selected_index(actions_state.get_selected_entry().index + PICKER_INDEX_OFFSET)
                log.debug('attach_mappings', selectedPreset)
                actions.close(prompt_bufnr)
 

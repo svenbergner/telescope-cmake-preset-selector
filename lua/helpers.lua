@@ -168,6 +168,13 @@ function M.set_last_selected_index(index)
   last_selected_index = index
 end
 
+--- Offset applied when converting a picker entry's custom `index` field to
+--- Telescope's `default_selection_index`. Our entry `index` counter starts at
+--- 1 (1-based), but Telescope's picker list starts at 3 internally due to the
+--- prompt and separator rows, so subtracting 2 maps the entry position back to
+--- the correct 1-based row for `default_selection_index`.
+M.PICKER_INDEX_OFFSET = -2
+
 
 -- scroll quickfix window to end if it's open, without giving it focus
 function M.scroll_quickfix_to_end_if_open()
