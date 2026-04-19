@@ -131,4 +131,6 @@ function M.show_cmake_configure_presets()
       :find()
 end
 
+M.show = M.show_cmake_configure_presets
+
 return M

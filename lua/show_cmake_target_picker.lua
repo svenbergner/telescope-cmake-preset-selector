@@ -72,4 +72,6 @@ function M.show_cmake_target_picker(selectedPreset)
     :find()
 end
 
+M.show = M.show_cmake_target_picker
+
 return M

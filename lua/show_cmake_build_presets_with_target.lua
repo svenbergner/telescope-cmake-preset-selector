@@ -70,4 +70,6 @@ function M.show_cmake_build_presets_with_target()
     :find()
 end
 
+M.show = M.show_cmake_build_presets_with_target
+
 return M
