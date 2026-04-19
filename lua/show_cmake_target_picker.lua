@@ -3,53 +3,18 @@ local actions_state = require('telescope.actions.state')
 local finders = require('telescope.finders')
 local pickers = require('telescope.pickers')
 local config = require('telescope.config').values
-local progress = require('fidget.progress')
 
-local scroll_quickfix_to_end_if_open = require('helpers').scroll_quickfix_to_end_if_open
-local format_time = require('helpers').format_time
-local update_notification = require('helpers').update_notification
-local set_cmake_build_job_id = require('helpers').set_cmake_build_job_id
-local get_current_index = require('helpers').get_current_index
-local set_current_index = require('helpers').set_current_index
-local set_last_build_messages = require('helpers').set_last_build_messages
-local set_last_build_state = require('helpers').set_last_build_state
+local helpers = require('helpers')
+local cmake_runner = require('cmake_runner')
 
 local log = require('plenary.log'):new()
 -- log.level = 'debug'
 
--- Ensure the 'CMake' fidget group uses the @text.note.comment highlight for the 'Build' annotation
-do
-  local ok, display = pcall(require, 'fidget.progress.display')
-  if ok then
-    display.options.overrides['CMake'] = vim.tbl_extend(
-      'force',
-      display.options.overrides['CMake'] or {},
-      { info_style = '@text.note.comment' }
-    )
-  end
-  local ok2, notification = pcall(require, 'fidget.notification')
-  if ok2 and notification.options.configs['CMake'] then
-    notification.options.configs['CMake'] = vim.tbl_extend(
-      'force',
-      notification.options.configs['CMake'],
-      { info_style = '@text.note.comment' }
-    )
-  end
-end
-
---- Renders an ASCII progress bar, e.g. "████████░░░░░░░░░░░░"
---- (percentage is shown separately by fidget via handle.percentage)
-local function make_progress_bar(pct, width)
-  width = width or 20
-  local filled = math.floor(pct / 100 * width)
-  local empty = width - filled
-  return string.rep('█', filled) .. string.rep('░', empty)
-end
-
 local M = {}
 
--- Helper function to show target picker and start build
---- @param selectedPreset string: The selected CMake build preset
+--- Shows a Telescope picker with all available custom CMake targets and runs
+--- the selected one using the given build preset.
+--- @param selectedPreset string The CMake build preset to use
 function M.show_cmake_target_picker(selectedPreset)
   local opts = {
     results_title = 'CMake Custom Targets',
@@ -62,149 +27,49 @@ function M.show_cmake_target_picker(selectedPreset)
   }
 
   pickers
-      .new(opts, {
-        finder = finders.new_async_job({
-          command_generator = function()
-            set_current_index(0)
-            return {
-              'bash',
-              '-c',
-              'rg add_custom_target -g "!ExternalLibs/" -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq',
-            }
-          end,
-          entry_maker = function(entry)
-            if entry == '' or entry == nil then
-              return nil
-            end
-            set_current_index(get_current_index() + 1)
-            return {
-              value = entry,
-              display = entry,
-              ordinal = entry,
-              index = get_current_index(),
-            }
-          end,
-        }),
-
-        sorter = config.generic_sorter(opts),
-
-        attach_mappings = function(prompt_bufnr)
-          actions.select_default:replace(function()
-            local selectedTarget = actions_state.get_selected_entry().value
-            log.debug('Selected target', selectedTarget)
-            actions.close(prompt_bufnr)
-
-            local api = vim.api
-            api.nvim_cmd({ cmd = 'wa' }, {})    -- save all buffers
-            vim.fn.setqflist({})
-
-            -- Start a new task with fidget
-            local handle = progress.handle.create({
-              title = 'Build',
-              message = selectedPreset .. ' [' .. selectedTarget .. ']',
-              lsp_client = { name = 'CMake' },
-            })
-
-            local starttime = vim.fn.reltime()
-            local cmd = 'cmake --build --preset=' .. selectedPreset .. ' --target ' .. selectedTarget
-            local build_error = false
-            local build_error_messages = {}
-            local cmake_build_job_id = vim.fn.jobstart(cmd, {
-              stdout_buffered = false,
-              stderr_buffered = true,
-              on_stdout = function(_, data)
-                if data then
-                  vim.schedule(function()
-                    for _, line in ipairs(data) do
-                      if #line > 1 then
-                        -- Parse cmake/ninja progress: "[N/M]" fraction or "[ X%]" percentage
-                        local n, m = line:match('%[%s*(%d+)/(%d+)%]')
-                        if n and m and tonumber(m) > 0 then
-                          local pct = math.floor(tonumber(n) / tonumber(m) * 100)
-                          local action = line:match('%[%s*%d+/%d+%]%s*(.*)') or ''
-                          handle.message = make_progress_bar(pct) .. string.format(' (%d%%)', pct) .. '\n' .. action:sub(1, 70)
-                        else
-                          local pct = line:match('%[%s*(%d+)%%%]')
-                          if pct then
-                            local action = line:match('%[%s*%d+%%%]%s*(.*)') or ''
-                            handle.message = make_progress_bar(tonumber(pct)) .. string.format(' (%d%%)', tonumber(pct)) .. '\n' .. action:sub(1, 70)
-                          else
-                            handle.message = line:match('[^\n]*'):sub(1, 70)
-                          end
-                        end
-                        if line:find('error:', 1, true) and build_error == false then
-                          update_notification(line, 'CMake Build Progress', 'error', 10000)
-                          vim.fn.setqflist({}, 'r', {
-                            title = 'CMake Build Errors: '
-                                .. selectedPreset
-                                .. ' ['
-                                .. selectedTarget
-                                .. ']',
-                          })
-                          vim.fn.setqflist({}, 'a', { lines = build_error_messages })
-                          build_error = true
-                        end
-                        if build_error then
-                          vim.fn.setqflist({}, 'a', { lines = { line } })
-                        else
-                          table.insert(build_error_messages, line)
-                        end
-                      end
-                    end
-                    scroll_quickfix_to_end_if_open()
-                  end)
-                end
-              end,
-              on_stderr = function(_, data)
-                if data then
-                  vim.schedule(function()
-                    for _, line in ipairs(data) do
-                      if #line > 1 then
-                        vim.fn.setqflist({}, 'a', { lines = { line } })
-                      end
-                    end
-                    scroll_quickfix_to_end_if_open()
-                  end)
-                end
-              end,
-              on_exit = function(_, code)
-                vim.schedule(function()
-                  local endtime = vim.fn.reltime()
-                  local duration = vim.fn.reltime(starttime, endtime)
-                  local duration_message = 'Build finished in '
-                      .. format_time(duration)
-                      .. ' with return code '
-                      .. code
-                  handle.message = duration_message
-                  vim.fn.setqflist({}, 'a', { lines = { duration_message } })
-                  if code == 0 then
-                    set_last_build_state('successful')
-                    handle:finish()
-                  else
-                    set_last_build_state('failed')
-                    handle:cancel()
-
-                    if #vim.fn.getqflist() > 0 then
-                      local qflist_title = 'CMake build ' .. selectedPreset .. ' [' .. selectedTarget .. ']'
-                      vim.fn.setqflist({}, 'r', { title = qflist_title })
-                      vim.cmd('copen')
-                    end
-                  end
-                  set_cmake_build_job_id(nil)
-                  set_last_build_messages(selectedPreset .. '[' .. selectedTarget .. ']', build_error_messages)
-                end)
-              end,
-            })
-            set_cmake_build_job_id(cmake_build_job_id)
-          end)
-          -- local mode = vim.api.nvim_get_mode().mode
-          -- if mode == 'i' then
-          --    vim.cmd('norm')
-          -- end
-          return true
+    .new(opts, {
+      finder = finders.new_async_job({
+        command_generator = function()
+          helpers.set_current_index(0)
+          return {
+            'bash',
+            '-c',
+            'rg add_custom_target -g "!ExternalLibs/" -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq',
+          }
         end,
-      })
-      :find()
+        entry_maker = function(entry)
+          if entry == '' or entry == nil then
+            return nil
+          end
+          helpers.set_current_index(helpers.get_current_index() + 1)
+          return {
+            value = entry,
+            display = entry,
+            ordinal = entry,
+            index = helpers.get_current_index(),
+          }
+        end,
+      }),
+
+      sorter = config.generic_sorter(opts),
+
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selectedTarget = actions_state.get_selected_entry().value
+          log.debug('Selected target', selectedTarget)
+          actions.close(prompt_bufnr)
+
+          local label = selectedPreset .. ' [' .. selectedTarget .. ']'
+          cmake_runner.run_cmake_build({
+            cmd = 'cmake --build --preset=' .. selectedPreset .. ' --target ' .. selectedTarget,
+            label = label,
+            preset = label,
+          })
+        end)
+        return true
+      end,
+    })
+    :find()
 end
 
 return M
