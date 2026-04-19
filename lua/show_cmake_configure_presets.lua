@@ -121,9 +121,9 @@ function M.show_cmake_configure_presets()
                         vim.cmd('cnext')
                         vim.cmd('wincmd p')
                      end
+                     set_last_build_messages(selectedPreset, messages)
                   end,
                })
-               set_last_build_messages(selectedPreset, messages)
             end)
             return true
          end,
