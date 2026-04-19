@@ -37,8 +37,8 @@ function M.show_cmake_build_presets()
             return nil
           end
           helpers.set_current_index(helpers.get_current_index() + 1)
-          local preset = helpers.getPresetFromEntry(entry)
-          local description = helpers.getDescFromEntry(entry)
+          local preset = helpers.get_preset_from_entry(entry)
+          local description = helpers.get_desc_from_entry(entry)
           return {
             value = preset,
             display = description,

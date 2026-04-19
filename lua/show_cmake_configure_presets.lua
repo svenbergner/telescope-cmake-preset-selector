@@ -6,8 +6,8 @@ local config = require('telescope.config').values
 local progress = require('fidget.progress')
 
 local scroll_quickfix_to_end_if_open = require('helpers').scroll_quickfix_to_end_if_open
-local getPresetFromEntry = require('helpers').getPresetFromEntry
-local getDescFromEntry = require('helpers').getDescFromEntry
+local getPresetFromEntry = require('helpers').get_preset_from_entry
+local getDescFromEntry = require('helpers').get_desc_from_entry
 local get_current_index = require('helpers').get_current_index
 local set_current_index = require('helpers').set_current_index
 local get_last_selected_index = require('helpers').get_last_selected_index

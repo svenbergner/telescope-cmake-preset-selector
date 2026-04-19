@@ -4,8 +4,8 @@ local actions = require("telescope.actions")
 local actions_state = require("telescope.actions.state")
 local config = require("telescope.config").values
 
-local getPresetFromEntry = require("helpers").getPresetFromEntry
-local getDescFromEntry = require("helpers").getDescFromEntry
+local getPresetFromEntry = require("helpers").get_preset_from_entry
+local getDescFromEntry = require("helpers").get_desc_from_entry
 local show_cmake_target_picker = require("show_cmake_target_picker").show_cmake_target_picker
 local get_current_index = require("helpers").get_current_index
 local set_current_index = require("helpers").set_current_index

@@ -1,5 +1,5 @@
-local getPresetFromEntry = require("helpers").getPresetFromEntry
-local getDescFromEntry = require("helpers").getDescFromEntry
+local getPresetFromEntry = require("helpers").get_preset_from_entry
+local getDescFromEntry = require("helpers").get_desc_from_entry
 
 --- Executes a command and uses its output to populate a picker.
 ---@param picker_opts any

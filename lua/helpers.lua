@@ -217,7 +217,7 @@ function M.update_notification(message, title, level, timeout)
   })
 end
 
-function M.getPresetFromEntry(entry)
+function M.get_preset_from_entry(entry)
   local startPos = entry:find('"', 1)
   if startPos == nil then
     return ""
@@ -233,7 +233,7 @@ function M.getPresetFromEntry(entry)
   return entry:sub(startOfPreset, endOfPreset)
 end
 
-function M.getDescFromEntry(entry)
+function M.get_desc_from_entry(entry)
   local entryLen = #entry
   local startOfDesc = entry:find("- ", 1)
   if startOfDesc == nil then
