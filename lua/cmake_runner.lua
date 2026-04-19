@@ -25,18 +25,7 @@ local function make_progress_bar(pct, width)
   return string.rep('█', filled) .. string.rep('░', width - filled)
 end
 
---- Truncates a string to the first line and at most max_len characters
---- @param msg string
---- @param max_len number|nil
---- @return string
-local function truncate_message(msg, max_len)
-  max_len = max_len or math.floor(vim.o.columns * 0.3)
-  local first_line = msg:match('([^\n]+)') or msg
-  if #first_line > max_len then
-    return first_line:sub(1, max_len) .. '…'
-  end
-  return first_line
-end
+local truncate_message = helpers.truncate_message
 
 local M = {}
 

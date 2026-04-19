@@ -251,4 +251,18 @@ function M.get_desc_from_entry(entry)
   return entry:sub(startOfDesc, endOfDesc)
 end
 
+--- Truncates a string to the first line and at most max_len characters.
+--- Falls back to 30% of the current terminal width when max_len is not given.
+--- @param msg string
+--- @param max_len number|nil
+--- @return string
+function M.truncate_message(msg, max_len)
+  max_len = max_len or math.floor(vim.o.columns * 0.3)
+  local first_line = msg:match('([^\n]+)') or msg
+  if #first_line > max_len then
+    return first_line:sub(1, max_len) .. '…'
+  end
+  return first_line
+end
+
 return M
