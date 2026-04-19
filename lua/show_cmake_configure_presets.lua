@@ -65,7 +65,6 @@ function M.show_cmake_configure_presets()
                set_configure_preset(selectedPreset)
                set_last_selected_index(actions_state.get_selected_entry().index - 2)
                log.debug('attach_mappings', selectedPreset)
-               ConfigurePreset = selectedPreset
                actions.close(prompt_bufnr)
 
                local api = vim.api

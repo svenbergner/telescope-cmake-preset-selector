@@ -59,7 +59,6 @@ function M.show_cmake_build_presets_with_target()
           local selectedPreset = actions_state.get_selected_entry().value
           set_last_selected_index(actions_state.get_selected_entry().index - 2)
           log.debug("Selected preset", selectedPreset)
-          BuildPreset = selectedPreset
           actions.close(prompt_bufnr)
 
           -- After preset selection, show target picker
