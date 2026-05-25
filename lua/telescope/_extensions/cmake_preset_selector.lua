@@ -262,7 +262,7 @@ local function show_last_build_message()
 end
 
 -- Set build state to 'dirty' when any file is saved and no build is running
-vim.api.nvim_create_autocmd('BufWritePost', {
+vim.api.nvim_create_autocmd('TextChanged', {
   group = vim.api.nvim_create_augroup('cmake_dirty_on_save', { clear = true }),
   callback = function()
     if get_cmake_build_job_id() == nil then

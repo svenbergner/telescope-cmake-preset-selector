@@ -34,7 +34,7 @@ function M.show_cmake_target_picker(selectedPreset)
           return {
             'bash',
             '-c',
-            'rg add_custom_target -g "!ExternalLibs/" -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | sort | uniq',
+            '(echo clean; rg add_custom_target -g "!ExternalLibs/" -I -N | sed "s/add_custom_target(//g" | sed "s/ //g" | sed "s/)//g" | grep -v "^clean$") | sort | uniq',
           }
         end,
         entry_maker = function(entry)
