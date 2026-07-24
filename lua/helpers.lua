@@ -72,7 +72,7 @@ function M.get_build_state()
     if state == 'successful' then
       icon = '✓'
     elseif state == 'failed' then
-      icon = '✗'
+      icon = '󰚌'
     elseif state == 'cancelled' then
       icon = '⊘'
     elseif state == 'dirty' then
